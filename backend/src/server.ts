@@ -1,0 +1,402 @@
+import 'dotenv/config';
+import express from 'express';
+import { PrismaClient } from '@prisma/client';
+import jwt from 'jsonwebtoken';
+import cors from 'cors';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
+const JWT_ADMIN_SECRET = process.env.JWT_ADMIN_SECRET || 'super-secret-admin-key';
+
+// ==========================================
+// ROTA DE LOGIN DO ADMIN
+// ==========================================
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 1. Verificar se o admin existe
+    const admin = await prisma.admin.findUnique({ where: { email } });
+    if (!admin) {
+      res.status(401).json({ error: 'Credenciais inválidas.' });
+      return;
+    }
+
+    // 2. Verificar se a senha confere
+    const passwordMatch = await bcrypt.compare(password, admin.password);
+    if (!passwordMatch) {
+      res.status(401).json({ error: 'Credenciais inválidas.' });
+      return;
+    }
+
+    // 3. Gerar o JWT do Admin (Diferente da licença das empresas)
+    const token = jwt.sign(
+      { id: admin.id, role: 'ADMIN' },
+      JWT_ADMIN_SECRET,
+      { expiresIn: '1d' } // Token válido por 1 dia
+    );
+
+    res.json({
+      message: 'Login bem-sucedido',
+      token,
+      admin: { id: admin.id, email: admin.email }
+    });
+    return;
+  } catch (error) {
+    console.error('Erro no login:', error);
+    res.status(500).json({ error: 'Erro interno no servidor.' });
+    return;
+  }
+});
+
+
+app.get('/companies', async (req, res) => {
+  try {
+    const companies = await prisma.company.findMany({
+      include: {
+        licenses: true, // Inclui a licença relacionada
+        customization: true, // Inclui a personalização
+      },
+      orderBy: {
+        name: 'asc' // Ordena por nome
+      }
+    });
+
+    // O campo 'modules' na licença é uma string JSON, vamos fazer o parse
+    const companiesWithParsedModules = companies.map(company => {
+      if (company.licenses && company.licenses.length > 0 && typeof company.licenses[0].modules === 'string') {
+        // Criamos uma cópia para evitar mutação direta do objeto do Prisma
+        const companyCopy = { ...company };
+        const licenseCopy = { ...company.licenses[0] };
+        licenseCopy.modules = JSON.parse(licenseCopy.modules);
+        companyCopy.licenses = [licenseCopy];
+        return companyCopy;
+      }
+      return company;
+    });
+
+
+    res.status(200).json(companiesWithParsedModules);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar empresas' });
+  }
+});
+
+app.post('/companies', async (req, res) => {
+  try {
+    const { name, document, modules, systemName, primaryColor, logoUrl } = req.body;
+
+    // 1. Cria a empresa e as personalizações no banco
+    const company = await prisma.company.create({
+      data: {
+        name,
+        document,
+        customization: {
+          create: {
+            systemName: systemName || 'NetControl',
+            primaryColor: primaryColor || '#000000',
+            logoUrl: logoUrl || null,
+          }
+        }
+      }
+    });
+
+    // 2. Define a validade do Token (ex: 30 dias a partir de hoje)
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    // 3. Monta o Payload (o que vai dentro do Token JWT)
+
+    const tokenPayload = {
+      companyId: company.id,
+      modules: modules, // ex: ["FINANCE", "SUPPORT"]
+      exp: Math.floor(expiresAt.getTime() / 1000) // JWT usa segundos
+    };
+
+    // 4. Assina o Token com a nossa Chave Mestra
+    const token = jwt.sign(tokenPayload, JWT_SECRET);
+
+    // 5. Salva a licença no banco atrelada à empresa
+    const license = await prisma.license.create({
+      data: {
+        companyId: company.id,
+        token: token,
+        expiresAt: expiresAt,
+        modules: JSON.stringify(modules)
+      }
+    });
+
+    res.status(201).json({
+      message: 'Empresa e Licença criadas com sucesso!',
+      companyId: company.id,
+      token: token,
+      expiresAt: expiresAt
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao criar empresa e licença' });
+  }
+});
+
+// ==========================================
+// GET /companies/:id - Detalhes de uma empresa
+// ==========================================
+app.get('/companies/:id', async (req, res) => {
+  try {
+    const company = await prisma.company.findUnique({
+      where: { id: req.params.id },
+      include: { licenses: true, customization: true }
+    });
+    if (!company) {
+      res.status(404).json({ error: 'Empresa não encontrada' });
+      return;
+    }
+    // Parse modules
+    const companyCopy = { ...company } as any;
+    if (companyCopy.licenses && companyCopy.licenses.length > 0 && typeof companyCopy.licenses[0].modules === 'string') {
+      companyCopy.licenses = companyCopy.licenses.map((l: any) => ({ ...l, modules: JSON.parse(l.modules) }));
+    }
+    res.json(companyCopy);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar empresa' });
+  }
+});
+
+// ==========================================
+// PUT /companies/:id - Atualizar empresa
+// ==========================================
+app.put('/companies/:id', async (req, res) => {
+  try {
+    const { name, document, status, systemName, primaryColor, logoUrl } = req.body;
+    const company = await prisma.company.update({
+      where: { id: req.params.id },
+      data: {
+        name,
+        document,
+        status,
+        customization: {
+          update: {
+            systemName,
+            primaryColor,
+            logoUrl,
+          }
+        }
+      },
+      include: { customization: true, licenses: true }
+    });
+    res.json({ message: 'Empresa atualizada com sucesso!', company });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao atualizar empresa' });
+  }
+});
+
+// ==========================================
+// DELETE /companies/:id - Remover empresa
+// ==========================================
+app.delete('/companies/:id', async (req, res) => {
+  try {
+    // Remove relações primeiro
+    await prisma.license.deleteMany({ where: { companyId: req.params.id } });
+    await prisma.customization.deleteMany({ where: { companyId: req.params.id } });
+    await prisma.company.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Empresa removida com sucesso!' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao remover empresa' });
+  }
+});
+
+// ==========================================
+// POST /companies/:id/renew - Renovar Licença
+// ==========================================
+app.post('/companies/:id/renew', async (req, res) => {
+  try {
+    const company = await prisma.company.findUnique({
+      where: { id: req.params.id },
+      include: { licenses: true }
+    });
+    if (!company) {
+      res.status(404).json({ error: 'Empresa não encontrada' });
+      return;
+    }
+
+    const lastLicense = company.licenses[company.licenses.length - 1];
+    const modulesArr = lastLicense ? JSON.parse(lastLicense.modules) : [];
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const tokenPayload = {
+      companyId: company.id,
+      modules: modulesArr,
+      exp: Math.floor(expiresAt.getTime() / 1000)
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET);
+
+    const license = await prisma.license.create({
+      data: {
+        companyId: company.id,
+        token,
+        expiresAt,
+        modules: JSON.stringify(modulesArr)
+      }
+    });
+
+    res.status(201).json({
+      message: 'Licença renovada com sucesso!',
+      token,
+      expiresAt,
+      license
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao renovar licença' });
+  }
+});
+
+// ==========================================
+// PUT /companies/:id/modules - Alterar Módulos
+// ==========================================
+app.put('/companies/:id/modules', async (req, res) => {
+  try {
+    const { modules } = req.body;
+
+    if (!Array.isArray(modules)) {
+      res.status(400).json({ error: 'Formato de módulos inválido.' });
+      return;
+    }
+
+    const company = await prisma.company.findUnique({
+      where: { id: req.params.id },
+      include: { licenses: true }
+    });
+
+    if (!company) {
+      res.status(404).json({ error: 'Empresa não encontrada' });
+      return;
+    }
+
+    const lastLicense = company.licenses[company.licenses.length - 1];
+
+    // Se não houver licença ativa, definimos expiração para 30 dias a partir de agora
+    let expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    if (lastLicense && new Date(lastLicense.expiresAt) > new Date()) {
+      expiresAt = new Date(lastLicense.expiresAt); // Mantém a mesma data de expiração
+    }
+
+    const tokenPayload = {
+      companyId: company.id,
+      modules: modules,
+      exp: Math.floor(expiresAt.getTime() / 1000)
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET);
+
+    const license = await prisma.license.create({
+      data: {
+        companyId: company.id,
+        token,
+        expiresAt,
+        modules: JSON.stringify(modules)
+      }
+    });
+
+    res.json({
+      message: 'Módulos atualizados e nova licença gerada com sucesso!',
+      token,
+      expiresAt,
+      license
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao atualizar módulos da empresa' });
+  }
+});
+
+// Rota de Heartbeat e Validação de Licença
+app.post('/heartbeat', async (req, res) => {
+  // O token geralmente é enviado no cabeçalho de autorização
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    res.status(401).json({ error: 'Token de licença não fornecido' });
+    return;
+  }
+
+  // O padrão é enviar "Bearer <token_gigante_aqui>"
+  const token = authHeader.split(' ')[1];
+
+  try {
+    // 1. A MÁGICA ACONTECE AQUI: O jwt.verify checa matematicamente se a licença é válida e não expirou
+    const decoded = jwt.verify(token, JWT_SECRET) as { companyId: string, modules: string[] };
+
+    // 2. Antes de liberar o sinal verde, verificamos no banco a situação ATUAL da empresa
+    const company = await prisma.company.findUnique({
+      where: { id: decoded.companyId },
+      select: { status: true }
+    });
+
+    if (!company) {
+      res.status(404).json({ error: 'Empresa não localizada na base.', valid: false });
+      return;
+    }
+
+    // REGRA DE INADIMPLÊNCIA / BLOQUEIO GERAL:
+    if (company.status === 'SUSPENDED') {
+      res.status(403).json({
+        error: 'Acesso negado. Entre em contato com o financeiro para regularizar e reestabelecer o serviço.',
+        reason: 'SUSPENDED',
+        valid: false
+      });
+      return;
+    }
+
+    if (company.status === 'CANCELED') {
+      res.status(403).json({
+        error: 'Licença cancelada permanentemente.',
+        reason: 'CANCELED',
+        valid: false
+      });
+      return;
+    }
+
+    // 3. Se passou da verificação e não está suspensa, atualizamos o "Visto por último" no banco
+    await prisma.company.update({
+      where: { id: decoded.companyId },
+      data: { lastSeenAt: new Date() } // Grava a data e hora exatas de agora
+    });
+
+    // 4. Devolvemos o sinal verde para o netcontrol continuar rodando
+    res.status(200).json({
+      message: 'Heartbeat recebido. Sistema Online e Licença Válida.',
+      valid: true,
+      modules: decoded.modules
+    });
+
+  } catch (error: any) {
+    // Se a assinatura for falsa ou a licença estiver expirada, ele cai no catch
+    console.error('Falha na licença:', error.message);
+    res.status(403).json({
+      error: 'Licença inválida, expirada ou adulterada',
+      valid: false
+    });
+  }
+});
+
+const PORT = 3333;
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor de Licenças rodando na porta ${PORT}`);
+});
