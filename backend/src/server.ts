@@ -24,22 +24,28 @@ const JWT_ADMIN_SECRET = process.env.JWT_ADMIN_SECRET || 'super-secret-admin-key
 // ==========================================
 app.post('/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = req.body.email?.trim();
+    const password = req.body.password;
+
+    console.log(`[LOGIN] Tentativa de login para: '${email}'`);
 
     // 1. Verificar se o admin existe
     const admin = await prisma.admin.findUnique({ where: { email } });
     if (!admin) {
-      res.status(401).json({ error: 'Credenciais inválidas.' });
+      console.log(`[LOGIN] Erro: admin não encontrado (${email})`);
+      res.status(401).json({ error: 'Credenciais inválidas. Admin não encontrado.' });
       return;
     }
 
     // 2. Verificar se a senha confere
     const passwordMatch = await bcrypt.compare(password, admin.password);
     if (!passwordMatch) {
-      res.status(401).json({ error: 'Credenciais inválidas.' });
+      console.log(`[LOGIN] Erro: senha incorreta (${email})`);
+      res.status(401).json({ error: 'Credenciais inválidas. Senha incorreta.' });
       return;
     }
 
+    console.log(`[LOGIN] Sucesso para: '${email}'`);
     // 3. Gerar o JWT do Admin (Diferente da licença das empresas)
     const token = jwt.sign(
       { id: admin.id, role: 'ADMIN' },
