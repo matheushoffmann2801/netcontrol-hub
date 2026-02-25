@@ -24,6 +24,7 @@ model Company {
   licenses      License[]
   auditLogs     AuditLog[]
   telemetries   Telemetry[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -82,3 +83,26 @@ model Telemetry {
 
   timestamp DateTime @default(now())
 }
+
+model Plan {
+  id        String   @id @default(uuid())
+  name      String
+  price     Float
+  modules   String   // JSON com os módulos liberados (ex: ["FINANCE", "SUPPORT"])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, WARNING, ERROR, SUCCESS
+  read      Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+}
+

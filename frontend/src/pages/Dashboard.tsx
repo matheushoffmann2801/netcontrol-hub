@@ -1,92 +1,79 @@
 import React from 'react';
 import {
-  Users, Server, Activity, ShieldCheck,
-  ArrowUpRight, ArrowDownRight, Globe, Cpu, TrendingUp,
-  Wifi, Clock
+  Users, Server, Activity, TrendingUp, Globe, Cpu,
+  ArrowUpRight, ArrowDownRight, Wifi, Clock,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { getStats } from '../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import { useAuthStore } from '../store/useAuthStore';
+import { cn } from '@/lib/utils';
 
 /* ─── Skeleton ─── */
 function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('skeleton animate-pulse rounded-lg', className)} />;
+  return <div className={cn('animate-pulse rounded-xl bg-white/[0.05]', className)} />;
 }
 
-function StatSkeleton() {
-  return (
-    <Card>
-      <CardContent className="pt-6 space-y-3">
-        <div className="flex items-center gap-3">
-          <Skeleton className="w-10 h-10 rounded-xl" />
-          <Skeleton className="h-3 flex-1" />
-        </div>
-        <Skeleton className="h-8 w-24" />
-        <Skeleton className="h-2.5 w-32" />
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ─── KPI Stat Card ─── */
+/* ─── KPI Card ─── */
 interface StatCardProps {
   title: string;
   value: string | number;
   subtext: string;
   icon: React.ElementType;
   trend?: number;
-  stripeClass?: string;
-  iconBg?: string;
-  iconColor?: string;
+  accent?: string;
 }
 
-function StatCard({ title, value, subtext, icon: Icon, trend, stripeClass, iconBg, iconColor }: StatCardProps) {
-  const trendPositive = trend !== undefined && trend >= 0;
-
+function StatCard({ title, value, subtext, icon: Icon, trend, accent = '#6366f1' }: StatCardProps) {
+  const trendUp = trend !== undefined && trend >= 0;
   return (
-    <Card className={cn('hover:shadow-md transition-all duration-300 hover:-translate-y-0.5', stripeClass)}>
-      <CardContent className="pt-6">
+    <div
+      className="relative rounded-2xl p-5 border border-white/[0.06] bg-white/[0.02] overflow-hidden group hover:border-white/[0.1] hover:-translate-y-0.5 transition-all duration-300"
+    >
+      {/* Subtle glow */}
+      <div
+        className="absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-30"
+        style={{ background: accent }}
+      />
+      <div className="relative z-10">
         <div className="flex items-start justify-between mb-4">
-          <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', iconBg ?? 'bg-muted')}>
-            <Icon className={cn('w-5 h-5', iconColor ?? 'text-foreground')} strokeWidth={1.8} />
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: `${accent}20`, boxShadow: `0 0 20px ${accent}20` }}
+          >
+            <Icon className="w-5 h-5" style={{ color: accent }} strokeWidth={1.8} />
           </div>
           {trend !== undefined && (
             <div className={cn(
-              'flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full',
-              trendPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+              'flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full',
+              trendUp ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
             )}>
-              {trendPositive
-                ? <ArrowUpRight className="w-3 h-3" />
-                : <ArrowDownRight className="w-3 h-3" />
-              }
+              {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
               {Math.abs(trend)}%
             </div>
           )}
         </div>
-        <p className="text-3xl font-bold text-foreground tracking-tight">{value}</p>
-        <p className="text-sm font-medium text-foreground mt-1">{title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{subtext}</p>
-      </CardContent>
-    </Card>
+        <p className="text-3xl font-black text-white tracking-tight">{value}</p>
+        <p className="text-sm font-semibold text-white/70 mt-1">{title}</p>
+        <p className="text-xs text-white/30 mt-0.5">{subtext}</p>
+      </div>
+    </div>
   );
 }
 
-/* ─── Custom Tooltip (Light) ─── */
-function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; color: string; name: string }[]; label?: string }) {
+/* ─── Custom Tooltip ─── */
+function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-background border border-border rounded-xl px-4 py-3 shadow-lg text-sm">
-      <p className="text-muted-foreground text-xs font-semibold mb-2">{label}</p>
-      {payload.map((p, i) => (
+    <div className="bg-[#12141e] border border-white/10 rounded-xl px-4 py-3 shadow-2xl text-sm">
+      <p className="text-white/40 text-xs font-semibold mb-2">{label}</p>
+      {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="font-bold text-foreground">{p.value}</span>
+          <span className="font-bold text-white">{p.value}</span>
+          <span className="text-white/40 text-xs">{p.name}</span>
         </div>
       ))}
     </div>
@@ -98,14 +85,17 @@ function ActivityRow({ name, time, pct, color }: { name: string; time: string; p
   return (
     <div className="flex items-center gap-4">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground">{name}</p>
-        <p className="text-xs text-muted-foreground">{time}</p>
+        <p className="text-sm font-semibold text-white/80">{name}</p>
+        <p className="text-xs text-white/30">{time}</p>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+        <div className="w-24 h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{ width: `${pct}%`, background: color }}
+          />
         </div>
-        <span className="text-xs font-bold text-foreground w-8 text-right">{pct}%</span>
+        <span className="text-xs font-black text-white/60 w-8 text-right">{pct}%</span>
       </div>
     </div>
   );
@@ -114,7 +104,13 @@ function ActivityRow({ name, time, pct, color }: { name: string; time: string; p
 /* ─── Dashboard ─── */
 export function Dashboard() {
   const { admin } = useAuthStore();
-  const [stats, setStats] = React.useState<{ activeCompanies: number; onlineInstances: number; offlineInstances: number; growthData: { name: string; active: number }[] } | null>(null);
+  const [stats, setStats] = React.useState<{
+    activeCompanies: number;
+    onlineInstances: number;
+    offlineInstances: number;
+    telemetry?: { avgCpu: number; avgRam: number; totalUsers: number };
+    growthData: { name: string; active: number }[];
+  } | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -125,13 +121,12 @@ export function Dashboard() {
 
   const firstName = admin?.email?.split('@')[0] ?? 'Admin';
   const capitalFirst = firstName.charAt(0).toUpperCase() + firstName.slice(1);
-
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
 
   const statusData = [
     { name: 'Online', value: stats?.onlineInstances ?? 0, color: '#10b981' },
-    { name: 'Offline', value: stats?.offlineInstances ?? 0, color: '#f43f5e' },
+    { name: 'Offline', value: stats?.offlineInstances ?? 0, color: '#6366f1' },
   ];
 
   const growthData = stats?.growthData ?? [];
@@ -140,216 +135,146 @@ export function Dashboard() {
     : 0;
 
   const activities = [
-    { name: 'Instâncias Online', time: 'Atualizado agora', pct: totalPct, color: '#10b981' },
-    { name: 'Módulos Ativos', time: 'Total estimado', pct: 72, color: '#3b82f6' },
-    { name: 'SLA Médio', time: 'Últimos 30 dias', pct: 99, color: '#8b5cf6' },
-    { name: 'Uptime Global', time: 'Este mês', pct: 97, color: '#f59e0b' },
+    { name: 'Instâncias Online', time: 'Verificado agora', pct: totalPct, color: '#10b981' },
+    { name: 'Uso de CPU (Média)', time: 'Tempo Real', pct: stats?.telemetry?.avgCpu ?? 0, color: '#ef4444' },
+    { name: 'Uso de RAM (Média)', time: 'Tempo Real', pct: stats?.telemetry?.avgRam ?? 0, color: '#6366f1' },
+    { name: 'SLA Global', time: 'Últimos 30 dias', pct: 99, color: '#8b5cf6' },
   ];
 
   return (
-    <div className="space-y-8">
-      {/* ── Header ── */}
+    <div className="space-y-6 sm:space-y-8">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground font-medium">{greeting},</p>
-          <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight mt-0.5">
+          <p className="text-sm text-white/40 font-medium">{greeting},</p>
+          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight mt-0.5">
             {capitalFirst} 👋
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Aqui está o resumo do seu sistema hoje.</p>
+          <p className="text-sm text-white/30 mt-1">Resumo em tempo real do sistema.</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+          <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
             </span>
-            <span className="text-xs font-semibold text-emerald-700">Sistema Online</span>
+            <span className="text-xs font-bold text-emerald-400">Sistema Online</span>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border border-border">
+          <div className="hidden sm:flex items-center gap-2 text-xs text-white/30 bg-white/[0.04] px-3 py-1.5 rounded-full border border-white/[0.06]">
             <Clock className="w-3.5 h-3.5" />
             {new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })}
           </div>
         </div>
       </div>
 
-      {/* ── KPI Cards ── */}
+      {/* KPI Cards */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <StatSkeleton key={i} />)}
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-36" />)}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatCard
-            title="Empresas Ativas"
-            value={stats?.activeCompanies ?? 0}
-            subtext="Total na base de dados"
-            icon={Users}
-            trend={12}
-            stripeClass="stripe-blue"
-            iconBg="bg-blue-50"
-            iconColor="text-blue-600"
-          />
-          <StatCard
-            title="Instâncias Online"
-            value={stats?.onlineInstances ?? 0}
-            subtext={`Verificado agora`}
-            icon={Server}
-            trend={5}
-            stripeClass="stripe-emerald"
-            iconBg="bg-emerald-50"
-            iconColor="text-emerald-600"
-          />
-          <StatCard
-            title="Módulos Ativos"
-            value={(stats?.activeCompanies ?? 0) * 3}
-            subtext="Total estimado"
-            icon={Cpu}
-            stripeClass="stripe-violet"
-            iconBg="bg-violet-50"
-            iconColor="text-violet-600"
-          />
-          <StatCard
-            title="Uptime Global"
-            value="99.9%"
-            subtext="Últimos 30 dias"
-            icon={Activity}
-            trend={2}
-            stripeClass="stripe-amber"
-            iconBg="bg-amber-50"
-            iconColor="text-amber-600"
-          />
+          <StatCard title="Empresas Ativas" value={stats?.activeCompanies ?? 0} subtext="Total na base" icon={Users} trend={12} accent="#6366f1" />
+          <StatCard title="Instâncias Online" value={stats?.onlineInstances ?? 0} subtext="Verificado agora" icon={Server} trend={5} accent="#10b981" />
+          <StatCard title="Usuários Conectados" value={stats?.telemetry?.totalUsers ?? 0} subtext="Nas instâncias ativas" icon={Users} accent="#8b5cf6" />
+          <StatCard title="CPU Média" value={`${stats?.telemetry?.avgCpu ?? 0}%`} subtext="Todas as instâncias" icon={Cpu} accent="#f59e0b" />
         </div>
       )}
 
-      {/* ── Charts Row ── */}
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Area Chart */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-blue-600" strokeWidth={2} />
+        <div className="lg:col-span-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="font-bold text-white flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-indigo-400" strokeWidth={2} />
                 Crescimento de Base
-              </CardTitle>
-              <Badge variant="secondary" className="text-[10px]">Mensal</Badge>
+              </h3>
+              <p className="text-xs text-white/30 mt-0.5">Evolução de empresas ativas</p>
             </div>
-            <p className="text-sm text-muted-foreground">Evolução de empresas ativas ao longo do tempo</p>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[260px] sm:h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={growthData} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="4 4" stroke="hsl(214.3 31.8% 91.4%)" vertical={false} />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fill: 'hsl(215.4 16.3% 46.9%)', fontSize: 11, fontWeight: 600 }}
-                    tickLine={false} axisLine={false} stroke="transparent"
-                  />
-                  <YAxis
-                    tick={{ fill: 'hsl(215.4 16.3% 46.9%)', fontSize: 11 }}
-                    tickLine={false} axisLine={false} stroke="transparent"
-                  />
-                  <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'hsl(214.3 31.8% 91.4%)', strokeWidth: 2 }} />
-                  <Area
-                    type="monotone" dataKey="active"
-                    stroke="#3b82f6" strokeWidth={2.5}
-                    fill="url(#gradArea)" dot={false}
-                    activeDot={{ r: 5, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white/[0.05] text-white/40 uppercase tracking-widest">Mensal</span>
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={growthData} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gradIndigo" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 600 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }} tickLine={false} axisLine={false} />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(99,102,241,0.3)', strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="active" name="Empresas" stroke="#6366f1" strokeWidth={2.5} fill="url(#gradIndigo)" dot={false} activeDot={{ r: 5, fill: '#6366f1', stroke: '#0a0b10', strokeWidth: 3 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
 
         {/* Donut */}
-        <Card className="flex flex-col">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" strokeWidth={2} />
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 flex flex-col">
+          <div className="mb-4">
+            <h3 className="font-bold text-white flex items-center gap-2">
+              <Wifi className="w-4 h-4 text-emerald-400" strokeWidth={2} />
               Saúde da Rede
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">Status atual das instâncias</p>
-          </CardHeader>
-          <CardContent className="flex-1 relative min-h-[240px]">
+            </h3>
+            <p className="text-xs text-white/30 mt-0.5">Status das instâncias</p>
+          </div>
+          <div className="flex-1 relative min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%" cy="45%"
-                  innerRadius={65} outerRadius={90}
-                  paddingAngle={5} dataKey="value" strokeWidth={0}
-                  animationBegin={0} animationDuration={1200}
-                >
+                <Pie data={statusData} cx="50%" cy="45%" innerRadius={60} outerRadius={82} paddingAngle={4} dataKey="value" strokeWidth={0} animationBegin={0} animationDuration={1200}>
                   {statusData.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Pie>
                 <Tooltip content={<ChartTooltip />} />
-                <Legend
-                  verticalAlign="bottom" iconType="circle" iconSize={8}
-                  formatter={(v) => <span className="text-xs font-semibold text-muted-foreground">{v}</span>}
-                />
+                <Legend verticalAlign="bottom" iconType="circle" iconSize={8} formatter={(v) => <span className="text-xs font-semibold text-white/40">{v}</span>} />
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pb-10 pointer-events-none">
-              <span className="text-3xl font-bold text-foreground">{totalPct}%</span>
-              <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Online</span>
+              <span className="text-3xl font-black text-white">{totalPct}%</span>
+              <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Online</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      {/* ── Bottom Row ── */}
+      {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Top Activities */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-violet-600" strokeWidth={2} />
-              Métricas do Sistema
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">Indicadores de desempenho em tempo real</p>
-          </CardHeader>
-          <CardContent className="space-y-5">
+        {/* Metrics */}
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+          <h3 className="font-bold text-white flex items-center gap-2 mb-5">
+            <Activity className="w-4 h-4 text-violet-400" strokeWidth={2} />
+            Métricas do Sistema
+          </h3>
+          <div className="space-y-5">
             {activities.map(a => <ActivityRow key={a.name} {...a} />)}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Quick Stats */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              <Wifi className="w-4 h-4 text-blue-600" strokeWidth={2} />
-              Resumo Rápido
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">Dados operacionais do momento</p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { label: 'Uptime Médio', value: '99.98%', icon: Wifi, color: 'bg-blue-50 text-blue-600' },
-                { label: 'Latência', value: '32ms', icon: Activity, color: 'bg-emerald-50 text-emerald-600' },
-                { label: 'Incidentes', value: '0', icon: ShieldCheck, color: 'bg-violet-50 text-violet-600' },
-                { label: 'Requests/min', value: '1.4k', icon: Globe, color: 'bg-amber-50 text-amber-600' },
-              ].map(({ label, value, icon: Icon, color }) => (
-                <div key={label} className="bg-muted/30 rounded-xl p-4 flex flex-col items-start gap-2">
-                  <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', color)}>
-                    <Icon className="w-4 h-4" strokeWidth={1.8} />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-foreground leading-none">{value}</p>
-                    <p className="text-xs text-muted-foreground font-medium mt-1">{label}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+          <h3 className="font-bold text-white flex items-center gap-2 mb-5">
+            <Globe className="w-4 h-4 text-blue-400" strokeWidth={2} />
+            Resumo Rápido
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: 'CPU Média', value: `${stats?.telemetry?.avgCpu ?? 0}%`, color: '#ef4444' },
+              { label: 'RAM Média', value: `${stats?.telemetry?.avgRam ?? 0}%`, color: '#6366f1' },
+              { label: 'Usu. Ativos', value: `${stats?.telemetry?.totalUsers ?? 0}`, color: '#8b5cf6' },
+              { label: 'Uptime SLA', value: '99.9%', color: '#10b981' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-xl p-4 bg-white/[0.03] border border-white/[0.04] flex flex-col gap-1">
+                <div className="w-2 h-2 rounded-full" style={{ background: color }} />
+                <p className="text-xl font-black text-white mt-1">{value}</p>
+                <p className="text-xs text-white/30 font-medium">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

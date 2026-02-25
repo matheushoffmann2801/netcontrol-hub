@@ -23,8 +23,15 @@ api.interceptors.request.use((config) => {
 // ==========================================
 
 export const login = async (email: string, password: string) => {
-  const response = await api.post('/auth/login', { email, password });
-  return response.data;
+  try {
+    const response = await api.post('/auth/login', { email, password });
+    return response.data;
+  } catch (error: any) {
+    if (error.response && error.response.data && error.response.data.error) {
+      throw new Error(error.response.data.error);
+    }
+    throw new Error('Erro de conexão com o servidor.');
+  }
 };
 
 export const getStats = async () => {
@@ -79,5 +86,36 @@ export const getCompanyLogs = async (id: string) => {
 
 export const getCompanyTelemetry = async (id: string) => {
   const response = await api.get(`/companies/${id}/telemetry`);
+  return response.data;
+};
+
+// ==========================================
+// PLANOS
+// ==========================================
+export const getPlans = async () => {
+  const response = await api.get('/plans');
+  return response.data;
+};
+
+export const createPlan = async (data: any) => {
+  const response = await api.post('/plans', data);
+  return response.data;
+};
+
+export const updatePlan = async (id: string, data: any) => {
+  const response = await api.put(`/plans/${id}`, data);
+  return response.data;
+};
+
+export const deletePlan = async (id: string) => {
+  const response = await api.delete(`/plans/${id}`);
+  return response.data;
+};
+
+// ==========================================
+// NOTIFICAÇÕES
+// ==========================================
+export const sendNotification = async (companyId: string, data: { title: string, message: string, type?: string }) => {
+  const response = await api.post(`/companies/${companyId}/notifications`, data);
   return response.data;
 };

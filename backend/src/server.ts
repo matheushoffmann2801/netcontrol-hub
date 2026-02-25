@@ -20,6 +20,27 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 const JWT_ADMIN_SECRET = process.env.JWT_ADMIN_SECRET || 'super-secret-admin-key';
 
 // ==========================================
+// MIDDLEWARE DE AUTENTICAÇÃO DO ADMIN
+// ==========================================
+const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    res.status(401).json({ error: 'Acesso negado. Token não fornecido.' });
+    return;
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_ADMIN_SECRET);
+    (req as any).admin = decoded; // Adiciona as informações do admin logado ao request
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Acesso negado. Token inválido ou expirado.' });
+    return;
+  }
+};
+
+// ==========================================
 // ROTA DE LOGIN DO ADMIN
 // ==========================================
 app.post('/auth/login', async (req, res) => {
@@ -69,7 +90,7 @@ app.post('/auth/login', async (req, res) => {
 // ==========================================
 // GET /stats - Estatísticas para o Dashboard
 // ==========================================
-app.get('/stats', async (req, res) => {
+app.get('/stats', authMiddleware, async (req, res) => {
   try {
     const companies = await prisma.company.findMany();
 
@@ -78,20 +99,58 @@ app.get('/stats', async (req, res) => {
 
     let onlineInstances = 0;
     const now = new Date().getTime();
+    const onlineCompanyIds: string[] = [];
+
     companies.forEach((c: any) => {
       if (c.lastSeenAt) {
         const diffMs = now - new Date(c.lastSeenAt).getTime();
         // Considerado online se o último ping foi há menos de 10 minutos
         if (diffMs < 10 * 60 * 1000) {
           onlineInstances++;
+          if (c.status === 'ACTIVE') {
+            onlineCompanyIds.push(c.id);
+          }
         }
       }
     });
+
+    let avgCpu = 0;
+    let avgRam = 0;
+    let totalUsers = 0;
+
+    if (onlineCompanyIds.length > 0) {
+      const latestTelemetries = await Promise.all(
+        onlineCompanyIds.map(id => prisma.telemetry.findFirst({
+          where: { companyId: id },
+          orderBy: { timestamp: 'desc' }
+        }))
+      );
+
+      let validTels = 0;
+      latestTelemetries.forEach(t => {
+        if (t) {
+          avgCpu += t.cpuUsage;
+          avgRam += t.ramUsage;
+          totalUsers += t.activeUsers;
+          validTels++;
+        }
+      });
+
+      if (validTels > 0) {
+        avgCpu = Math.round(avgCpu / validTels);
+        avgRam = Math.round(avgRam / validTels);
+      }
+    }
 
     res.status(200).json({
       activeCompanies,
       onlineInstances,
       offlineInstances: companies.length - onlineInstances,
+      telemetry: {
+        avgCpu,
+        avgRam,
+        totalUsers
+      },
       growthData: [
         { name: 'Jan', active: Math.floor(activeCompanies * 0.2) },
         { name: 'Fev', active: Math.floor(activeCompanies * 0.4) },
@@ -107,7 +166,7 @@ app.get('/stats', async (req, res) => {
   }
 });
 
-app.get('/companies', async (req, res) => {
+app.get('/companies', authMiddleware, async (req, res) => {
   try {
     const companies = await prisma.company.findMany({
       include: {
@@ -126,6 +185,7 @@ app.get('/companies', async (req, res) => {
         const companyCopy = { ...company };
         const licenseCopy = { ...company.licenses[0] };
         licenseCopy.modules = JSON.parse(licenseCopy.modules);
+        delete (licenseCopy as any).token; // Remove o JWT token do payload por segurança
         companyCopy.licenses = [licenseCopy];
         return companyCopy;
       }
@@ -140,7 +200,7 @@ app.get('/companies', async (req, res) => {
   }
 });
 
-app.post('/companies', async (req, res) => {
+app.post('/companies', authMiddleware, async (req, res) => {
   try {
     const { name, document, modules, systemName, primaryColor, logoUrl } = req.body;
 
@@ -212,7 +272,7 @@ app.post('/companies', async (req, res) => {
 // ==========================================
 // GET /companies/:id - Detalhes de uma empresa
 // ==========================================
-app.get('/companies/:id', async (req, res) => {
+app.get('/companies/:id', authMiddleware, async (req, res) => {
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -237,7 +297,7 @@ app.get('/companies/:id', async (req, res) => {
 // ==========================================
 // GET /companies/:id/logs - Histórico de Auditoria
 // ==========================================
-app.get('/companies/:id/logs', async (req, res) => {
+app.get('/companies/:id/logs', authMiddleware, async (req, res) => {
   try {
     const logs = await prisma.auditLog.findMany({
       where: { companyId: req.params.id },
@@ -254,7 +314,7 @@ app.get('/companies/:id/logs', async (req, res) => {
 // ==========================================
 // GET /companies/:id/telemetry - Histórico de Telemetria
 // ==========================================
-app.get('/companies/:id/telemetry', async (req, res) => {
+app.get('/companies/:id/telemetry', authMiddleware, async (req, res) => {
   try {
     const telemetry = await prisma.telemetry.findMany({
       where: { companyId: req.params.id },
@@ -271,7 +331,7 @@ app.get('/companies/:id/telemetry', async (req, res) => {
 // ==========================================
 // PUT /companies/:id - Atualizar empresa
 // ==========================================
-app.put('/companies/:id', async (req, res) => {
+app.put('/companies/:id', authMiddleware, async (req, res) => {
   try {
     const { name, document, status, systemName, primaryColor, logoUrl } = req.body;
 
@@ -328,7 +388,7 @@ app.put('/companies/:id', async (req, res) => {
 // ==========================================
 // DELETE /companies/:id - Remover empresa
 // ==========================================
-app.delete('/companies/:id', async (req, res) => {
+app.delete('/companies/:id', authMiddleware, async (req, res) => {
   try {
     // Remove TODAS as relações primeiro (ordem importa para FK constraints)
     await prisma.telemetry.deleteMany({ where: { companyId: req.params.id } });
@@ -346,7 +406,7 @@ app.delete('/companies/:id', async (req, res) => {
 // ==========================================
 // POST /companies/:id/renew - Renovar Licença
 // ==========================================
-app.post('/companies/:id/renew', async (req, res) => {
+app.post('/companies/:id/renew', authMiddleware, async (req, res) => {
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -406,7 +466,7 @@ app.post('/companies/:id/renew', async (req, res) => {
 // ==========================================
 // PUT /companies/:id/modules - Alterar Módulos
 // ==========================================
-app.put('/companies/:id/modules', async (req, res) => {
+app.put('/companies/:id/modules', authMiddleware, async (req, res) => {
   try {
     const { modules } = req.body;
 
@@ -478,7 +538,7 @@ app.put('/companies/:id/modules', async (req, res) => {
 // ==========================================
 // PUT /companies/:id/expiration - Alterar Data de Expiração
 // ==========================================
-app.put('/companies/:id/expiration', async (req, res) => {
+app.put('/companies/:id/expiration', authMiddleware, async (req, res) => {
   try {
     const { expiresAt } = req.body;
 
@@ -546,7 +606,125 @@ app.put('/companies/:id/expiration', async (req, res) => {
   }
 });
 
+// ==========================================
+// API DE PLANOS
+// ==========================================
+app.get('/plans', authMiddleware, async (req, res) => {
+  try {
+    const plans = await prisma.plan.findMany({ orderBy: { createdAt: 'desc' } });
+    res.json(plans.map(p => ({ ...p, modules: JSON.parse(p.modules) })));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar planos' });
+  }
+});
+
+app.post('/plans', authMiddleware, async (req, res) => {
+  try {
+    const { name, price, modules } = req.body;
+    const plan = await prisma.plan.create({
+      data: {
+        name,
+        price: Number(price),
+        modules: JSON.stringify(modules || [])
+      }
+    });
+    res.status(201).json({ ...plan, modules: JSON.parse(plan.modules) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao criar plano' });
+  }
+});
+
+app.put('/plans/:id', authMiddleware, async (req, res) => {
+  try {
+    const { name, price, modules } = req.body;
+    const plan = await prisma.plan.update({
+      where: { id: req.params.id },
+      data: {
+        name,
+        price: Number(price),
+        modules: JSON.stringify(modules || [])
+      }
+    });
+    res.json({ ...plan, modules: JSON.parse(plan.modules) });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao atualizar plano' });
+  }
+});
+
+app.delete('/plans/:id', authMiddleware, async (req, res) => {
+  try {
+    await prisma.plan.delete({ where: { id: req.params.id } });
+    res.json({ message: 'Plano removido com sucesso' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao remover plano' });
+  }
+});
+
+// ==========================================
+// NOTIFICAÇÕES (HUB -> CLIENTE)
+// ==========================================
+app.post('/companies/:id/notifications', authMiddleware, async (req, res) => {
+  try {
+    const { title, message, type } = req.body;
+    const notification = await prisma.notification.create({
+      data: {
+        companyId: req.params.id,
+        title,
+        message,
+        type: type || 'INFO',
+        read: false
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        companyId: req.params.id,
+        action: 'NOTIFICATION_SENT',
+        details: `Notificação enviada: ${title}`,
+        ip: req.ip || req.socket.remoteAddress || 'unknown'
+      }
+    });
+
+    res.status(201).json(notification);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao enviar notificação' });
+  }
+});
+
+app.post('/notifications/mark-read', async (req, res) => {
+  // Esse endpoint é consumido pelo Cliente NetControl usando a sua licença (token JWT)
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Token não fornecido' });
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as { companyId: string };
+    const { notificationIds } = req.body; // Array de IDs
+
+    if (notificationIds && Array.isArray(notificationIds)) {
+      await prisma.notification.updateMany({
+        where: {
+          id: { in: notificationIds },
+          companyId: decoded.companyId // Garante que a empresa só apague as suas notificações
+        },
+        data: { read: true }
+      });
+    }
+
+    res.json({ success: true, message: 'Notificações marcadas como lidas.' });
+  } catch (error) {
+    console.error('Falha ao marcar notificações como lidas:', error);
+    res.status(403).json({ error: 'Token inválido' });
+  }
+});
+
 // Rota de Heartbeat e Validação de Licença
+// Não requer autenticação de admin web, pois é consumida pelo NetControl Client
 app.post('/heartbeat', async (req, res) => {
   // O token geralmente é enviado no cabeçalho de autorização
   const authHeader = req.headers.authorization;
@@ -611,11 +789,18 @@ app.post('/heartbeat', async (req, res) => {
       });
     }
 
+    // 4.5 Buscar notificações pendentes (não lidas)
+    const pendingNotifications = await prisma.notification.findMany({
+      where: { companyId: decoded.companyId, read: false },
+      orderBy: { createdAt: 'desc' }
+    });
+
     // 5. Devolvemos o sinal verde para o netcontrol continuar rodando
     res.status(200).json({
       message: 'Heartbeat recebido. Sistema Online e Licença Válida.',
       valid: true,
-      modules: decoded.modules
+      modules: decoded.modules,
+      notifications: pendingNotifications
     });
 
   } catch (error: any) {
@@ -631,7 +816,7 @@ app.post('/heartbeat', async (req, res) => {
 // ==========================================
 // POST /companies/:id/force-sync - Forçar Atualização Imediata (Control Plane)
 // ==========================================
-app.post('/companies/:id/force-sync', async (req, res) => {
+app.post('/companies/:id/force-sync', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
