@@ -4,7 +4,11 @@ import { Plus, Search, Copy, CheckCircle2, ExternalLink, Building2, Filter } fro
 import { CompanyModal } from '../components/CompanyModal';
 import { getCompanies, createCompany } from '../services/api';
 import { toast } from 'sonner';
+<<<<<<< HEAD
 import { Card } from '@/components/ui/card';
+=======
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+>>>>>>> af22a9243d50f3e901f00175fa844c4e80bd5d24
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
