@@ -1,144 +1,280 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, Shield, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
-import { api } from '../services/api';
+import { login as apiLogin } from '../services/api';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
-export function Login() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const login = useAuthStore((state) => state.login);
-    const navigate = useNavigate();
+/* ─── Geometric Pattern SVG (dark polygon tiles matching reference image) ─── */
+function GeometricPattern() {
+  return (
+    <svg
+      className="absolute inset-0 w-full h-full"
+      viewBox="0 0 390 300"
+      preserveAspectRatio="xMidYMid slice"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <pattern id="geo" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+          <polygon points="0,30 30,0 60,30 30,60" fill="rgba(255,255,255,0.04)" />
+          <polygon points="0,0 30,0 0,30" fill="rgba(255,255,255,0.03)" />
+          <polygon points="30,0 60,0 60,30" fill="rgba(255,255,255,0.05)" />
+          <polygon points="0,30 0,60 30,60" fill="rgba(255,255,255,0.03)" />
+          <polygon points="60,30 60,60 30,60" fill="rgba(255,255,255,0.04)" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#geo)" />
+      <polygon points="20,10 60,5 80,40 40,50" fill="rgba(255,255,255,0.03)" />
+      <polygon points="280,20 340,10 360,60 300,65" fill="rgba(255,255,255,0.04)" />
+      <polygon points="140,120 190,100 210,155 160,165" fill="rgba(255,255,255,0.03)" />
+      <polygon points="310,150 370,140 380,200 320,210" fill="rgba(255,255,255,0.05)" />
+      <polygon points="10,200 70,185 80,240 20,255" fill="rgba(255,255,255,0.03)" />
+    </svg>
+  );
+}
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
+/* ─── Underline Input with floating label ─── */
+interface UnderlineInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  icon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+}
 
-        try {
-            const response = await api.post('/auth/login', { email, password });
-            login(response.data.token, response.data.admin);
-            navigate('/');
-        } catch (err: any) {
-            setError(err.response?.data?.error || 'Erro ao efetuar login');
-        } finally {
-            setLoading(false);
-        }
-    };
+function UnderlineInput({ label, icon, rightIcon, className, ...props }: UnderlineInputProps) {
+  const [focused, setFocused] = useState(false);
+  const hasValue = !!(props.value as string);
 
-    return (
-        <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center relative overflow-hidden font-sans">
-            {/* Animated Background Orbs */}
-            <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-600 rounded-full blur-[180px] opacity-[0.08] animate-pulse pointer-events-none" />
-            <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-violet-600 rounded-full blur-[180px] opacity-[0.08] animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
-            <div className="absolute top-[40%] left-[50%] w-[30%] h-[30%] bg-cyan-500 rounded-full blur-[150px] opacity-[0.05] pointer-events-none" />
-
-            {/* Grid Pattern Overlay */}
-            <div
-                className="absolute inset-0 opacity-[0.03]"
-                style={{
-                    backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
-                    backgroundSize: '60px 60px'
-                }}
-            />
-
-            <div className="w-full max-w-[420px] p-10 relative z-10">
-                {/* Logo & Branding */}
-                <div className="flex flex-col items-center mb-10">
-                    <div className="relative group mb-6">
-                        <div className="absolute inset-0 bg-gradient-to-tr from-blue-500 to-violet-500 rounded-2xl blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
-                        <div className="relative w-20 h-20 bg-gradient-to-tr from-blue-500 via-blue-600 to-violet-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/20 transition-transform hover:scale-105 duration-300">
-                            <Shield className="text-white w-10 h-10" strokeWidth={1.5} />
-                        </div>
-                    </div>
-                    <h1 className="text-3xl font-black tracking-tight text-white mb-1">
-                        NetControl <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">Hub</span>
-                    </h1>
-                    <p className="text-gray-500 text-sm font-medium tracking-wide">Control Plane • Admin Panel</p>
-                </div>
-
-                {/* Login Card */}
-                <div className="bg-white/[0.04] backdrop-blur-2xl border border-white/[0.08] rounded-3xl p-8 shadow-[0_32px_64px_rgba(0,0,0,0.4)]">
-                    <form onSubmit={handleLogin} className="space-y-5">
-                        {error && (
-                            <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm text-center font-medium flex items-center justify-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="space-y-1.5">
-                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.15em] ml-1">
-                                E-mail
-                            </label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-600 group-focus-within:text-blue-400 transition-colors duration-300">
-                                    <Mail className="h-4.5 w-4.5" strokeWidth={1.5} />
-                                </div>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="block w-full pl-12 pr-4 py-3.5 border border-white/[0.08] bg-white/[0.03] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 focus:bg-white/[0.05] transition-all duration-300 text-sm"
-                                    placeholder="admin@netcontrol.com.br"
-                                    required
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-[0.15em] ml-1">
-                                Senha
-                            </label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-600 group-focus-within:text-blue-400 transition-colors duration-300">
-                                    <Lock className="h-4.5 w-4.5" strokeWidth={1.5} />
-                                </div>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="block w-full pl-12 pr-12 py-3.5 border border-white/[0.08] bg-white/[0.03] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 focus:bg-white/[0.05] transition-all duration-300 text-sm"
-                                    placeholder="••••••••"
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-600 hover:text-gray-300 transition-colors"
-                                >
-                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </button>
-                            </div>
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:ring-offset-2 focus:ring-offset-[#0a0a0f] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 active:scale-[0.98] mt-2 group"
-                        >
-                            {loading ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    Acessar Painel
-                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                                </>
-                            )}
-                        </button>
-                    </form>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-8 text-center">
-                    <p className="text-[11px] text-gray-600 tracking-[0.2em] uppercase font-medium">
-                        Powered by NetControl Security
-                    </p>
-                </div>
-            </div>
+  return (
+    <div className="relative pb-1">
+      {icon && (
+        <div className="absolute left-0 top-[26px] text-gray-400 pointer-events-none">
+          {icon}
         </div>
-    );
+      )}
+      <label
+        className={cn(
+          'absolute transition-all duration-200 pointer-events-none select-none',
+          (focused || hasValue)
+            ? 'top-0 text-[10px] text-gray-400 font-semibold tracking-widest uppercase'
+            : 'top-[26px] text-sm text-gray-400',
+          icon ? 'left-6' : 'left-0'
+        )}
+      >
+        {label}
+      </label>
+      <input
+        {...props}
+        onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+        onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+        className={cn(
+          'w-full bg-transparent border-0 border-b-2 outline-none pt-7 pb-2 text-sm text-gray-900 transition-colors duration-200',
+          focused ? 'border-gray-900' : 'border-gray-200',
+          icon ? 'pl-6' : 'pl-0',
+          rightIcon ? 'pr-8' : 'pr-0',
+          className
+        )}
+      />
+      {rightIcon && (
+        <div className="absolute right-0 top-[26px] text-gray-400">
+          {rightIcon}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Ripple Button ─── */
+interface RippleButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  loading?: boolean;
+}
+
+function RippleButton({ children, loading, className, onClick, ...props }: RippleButtonProps) {
+  const [ripples, setRipples] = useState<{ x: number; y: number; id: number }[]>([]);
+  const ref = useRef<HTMLButtonElement>(null);
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const id = Date.now();
+    setRipples(prev => [...prev, { x, y, id }]);
+    setTimeout(() => setRipples(prev => prev.filter(r => r.id !== id)), 600);
+    onClick?.(e);
+  };
+
+  return (
+    <button
+      ref={ref}
+      onClick={handleClick}
+      className={cn(
+        'relative w-full h-14 rounded-full bg-gray-900 text-white text-sm font-semibold overflow-hidden transition-all duration-200 hover:bg-gray-800 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed',
+        className
+      )}
+      {...props}
+    >
+      <span className="relative z-10 flex items-center justify-center gap-2">
+        {loading && (
+          <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        )}
+        {children}
+      </span>
+      {ripples.map(r => (
+        <span
+          key={r.id}
+          className="absolute rounded-full bg-white/20 animate-ripple pointer-events-none"
+          style={{ width: 200, height: 200, left: r.x - 100, top: r.y - 100 }}
+        />
+      ))}
+    </button>
+  );
+}
+
+/* ─── Login Page ─── */
+export function Login() {
+  const navigate = useNavigate();
+  const { login: storeLogin } = useAuthStore();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!email || !password) {
+      toast.error('Preencha e-mail e senha');
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await apiLogin(email, password);
+      storeLogin(data.token, data.admin);
+      navigate('/', { replace: true });
+    } catch {
+      toast.error('Credenciais inválidas. Verifique seu e-mail e senha.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{ background: '#f0f0f0' }}
+    >
+      {/* Phone-card wrapper — exato como a referência */}
+      <div
+        className="relative flex flex-col overflow-hidden"
+        style={{
+          width: '100%',
+          maxWidth: 390,
+          height: 'min(100dvh, 760px)',
+          borderRadius: 'clamp(0px, 4vw, 36px)',
+          boxShadow: '0 40px 100px -20px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.06)',
+        }}
+      >
+        {/* ── TOPO: Fundo escuro com padrão geométrico (38%) ── */}
+        <div
+          className="relative flex-none flex flex-col items-center justify-center"
+          style={{ height: '38%', background: '#1a1a1a' }}
+        >
+          <GeometricPattern />
+          {/* Logo NC — cartão branco quadrado */}
+          <div
+            className="relative z-10 flex items-center justify-center"
+            style={{
+              width: 72, height: 72,
+              borderRadius: 18,
+              background: '#ffffff',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.4)',
+            }}
+          >
+            <span style={{ fontSize: 26, fontWeight: 900, color: '#1a1a1a', letterSpacing: '-1.5px' }}>
+              NC
+            </span>
+          </div>
+        </div>
+
+        {/* ── RODAPÉ: Cartão branco (62%) ── */}
+        <div
+          className="flex-1 flex flex-col bg-white"
+          style={{ borderTopLeftRadius: 36, borderTopRightRadius: 36, marginTop: -24 }}
+        >
+          <form onSubmit={handleLogin} className="flex flex-col h-full px-8 pt-10 pb-8">
+            {/* Título */}
+            <h1
+              style={{
+                fontWeight: 300, fontSize: 30,
+                color: '#1a1a1a', letterSpacing: '-0.5px',
+                lineHeight: 1, marginBottom: 40,
+                fontFamily: 'Inter, sans-serif',
+              }}
+            >
+              Entrar
+            </h1>
+
+            {/* E-mail */}
+            <div className="mb-8">
+              <UnderlineInput
+                label="E-mail"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                icon={<Mail className="w-4 h-4" />}
+                autoComplete="email"
+              />
+            </div>
+
+            {/* Senha */}
+            <div className="mb-auto">
+              <UnderlineInput
+                label="Senha"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                icon={<Lock className="w-4 h-4" />}
+                rightIcon={
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowPassword(s => !s)}
+                    className="cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                }
+                autoComplete="current-password"
+              />
+            </div>
+
+            {/* Botão */}
+            <div className="mt-auto">
+              <RippleButton
+                type="submit"
+                loading={loading}
+                disabled={loading}
+              >
+                {loading ? 'Entrando...' : 'Entrar'}
+              </RippleButton>
+
+              {/* Link cadastro */}
+              <p className="text-center text-xs text-gray-400 mt-6">
+                Não possui uma conta?{' '}
+                <button
+                  type="button"
+                  className="text-gray-900 font-semibold hover:underline"
+                >
+                  Criar conta
+                </button>
+              </p>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
 }
