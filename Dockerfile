@@ -10,6 +10,9 @@ ENV NODE_ENV=development
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ ./
+
+# Forçar ambiente de produção para o Vite buildar corretamente sem referências ao localhost
+ENV NODE_ENV=production
 RUN npm run build
 
 # ==========================================
