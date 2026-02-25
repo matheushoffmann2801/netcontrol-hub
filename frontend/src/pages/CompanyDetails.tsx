@@ -175,10 +175,14 @@ export function CompanyDetails() {
     };
 
     const AVAILABLE_MODULES = [
-        { id: 'FINANCE', name: 'Financeiro' },
-        { id: 'SUPPORT', name: 'Suporte / CRM' },
-        { id: 'REPORTS', name: 'Relatórios Avançados' },
-        { id: 'INVENTORY', name: 'Estoque' }
+        { id: 'BASE', name: 'Módulo Base' },
+        { id: 'FINANCEIRO', name: 'Financeiro' },
+        { id: 'INVENTARIO', name: 'Inventário' },
+        { id: 'ATIVOS_FROTA', name: 'Ativos e Frota' },
+        { id: 'OPERACIONAL', name: 'Operacional' },
+        { id: 'PAINEL_TECNICO', name: 'Painel Técnico' },
+        { id: 'CONTRATOS', name: 'Contratos' },
+        { id: 'FULL_ACCESS', name: 'Master / Acesso Total' }
     ];
 
     const [editingModules, setEditingModules] = useState(false);
