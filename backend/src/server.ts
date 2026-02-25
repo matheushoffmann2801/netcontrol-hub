@@ -710,7 +710,7 @@ app.put('/plans/:id', authMiddleware, async (req, res) => {
   try {
     const { name, price, modules } = req.body;
     const plan = await prisma.plan.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: {
         name,
         price: Number(price),
@@ -726,7 +726,7 @@ app.put('/plans/:id', authMiddleware, async (req, res) => {
 
 app.delete('/plans/:id', authMiddleware, async (req, res) => {
   try {
-    await prisma.plan.delete({ where: { id: req.params.id } });
+    await prisma.plan.delete({ where: { id: req.params.id as string } });
     res.json({ message: 'Plano removido com sucesso' });
   } catch (error) {
     console.error(error);
@@ -742,7 +742,7 @@ app.post('/companies/:id/notifications', authMiddleware, async (req, res) => {
     const { title, message, type } = req.body;
     const notification = await prisma.notification.create({
       data: {
-        companyId: req.params.id,
+        companyId: req.params.id as string,
         title,
         message,
         type: type || 'INFO',
@@ -752,7 +752,7 @@ app.post('/companies/:id/notifications', authMiddleware, async (req, res) => {
 
     await prisma.auditLog.create({
       data: {
-        companyId: req.params.id,
+        companyId: req.params.id as string,
         action: 'NOTIFICATION_SENT',
         details: `Notificação enviada: ${title}`,
         ip: req.ip || req.socket.remoteAddress || 'unknown'
@@ -876,27 +876,19 @@ app.post('/heartbeat', async (req, res) => {
       });
     }
 
-<<<<<<< HEAD
     // 4.5 Buscar notificações pendentes (não lidas)
     const pendingNotifications = await prisma.notification.findMany({
       where: { companyId: decoded.companyId, read: false },
       orderBy: { createdAt: 'desc' }
     });
 
-    // 5. Devolvemos o sinal verde para o netcontrol continuar rodando
-    res.status(200).json({
-      message: 'Heartbeat recebido. Sistema Online e Licença Válida.',
-      valid: true,
-      modules: decoded.modules,
-      notifications: pendingNotifications
-=======
     // 6. Devolvemos o sinal verde com auto-sync (se houver newToken, o cliente atualiza .env)
     res.status(200).json({
       message: 'Heartbeat recebido. Sistema Online e Licença Válida.',
       valid: true,
       modules: latestLicense ? JSON.parse(latestLicense.modules) : decoded.modules,
-      newToken: newToken
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
+      newToken: newToken,
+      notifications: pendingNotifications
     });
 
   } catch (error: any) {
