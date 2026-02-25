@@ -5,7 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import {
     ArrowLeft, CheckCircle2, XCircle, Shield,
     Activity, Server, History, RefreshCcw, Power, Eye, Fingerprint, Database,
-    Copy, Edit, Check
+    Copy, Edit, Check, Sparkles, Save
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
