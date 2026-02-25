@@ -188,6 +188,24 @@ export function CompanyDetails() {
     const [editingModules, setEditingModules] = useState(false);
     const [selectedModules, setSelectedModules] = useState<string[]>([]);
 
+    const PREDEFINED_PLANS = [
+        {
+            name: 'Plano Básico',
+            description: 'Gestão Financeira e Cadastros',
+            modules: ['BASE', 'FINANCEIRO', 'INVENTARIO']
+        },
+        {
+            name: 'Plano Plus',
+            description: 'Gestão Completa c/ Operacional',
+            modules: ['BASE', 'FINANCEIRO', 'INVENTARIO', 'OPERACIONAL', 'CONTRATOS']
+        },
+        {
+            name: 'Acesso Total (Master)',
+            description: 'Todos os módulos + Painel Técnico',
+            modules: ['BASE', 'FINANCEIRO', 'INVENTARIO', 'ATIVOS_FROTA', 'OPERACIONAL', 'PAINEL_TECNICO', 'CONTRATOS', 'FULL_ACCESS']
+        }
+    ];
+
     const openModuleEditor = () => {
         setSelectedModules([...(currentLicense?.modules || [])]);
         setEditingModules(true);
@@ -468,30 +486,67 @@ export function CompanyDetails() {
                     {/* Module Editor Modal */}
                     {editingModules && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                                <div className="px-6 py-4 border-b border-gray-100">
-                                    <h2 className="text-lg font-bold text-gray-900">Editar Módulos</h2>
-                                    <p className="text-xs text-gray-500 mt-1">Selecione quais módulos esta empresa tem acesso. Salvar gerará uma nova licença sincronizável.</p>
+                            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                                    <div>
+                                        <h2 className="text-lg font-bold text-gray-900">Editar Módulos & Planos</h2>
+                                        <p className="text-xs text-gray-500 mt-0.5">Defina pacotes ou escolha módulos isolados para gerar a licença.</p>
+                                    </div>
+                                    <button onClick={() => setEditingModules(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 p-2 rounded-full transition-colors">
+                                        <XCircle className="w-5 h-5" />
+                                    </button>
                                 </div>
-                                <div className="p-6 space-y-3">
-                                    {AVAILABLE_MODULES.map(mod => {
-                                        const isChecked = selectedModules.includes(mod.id);
-                                        return (
-                                            <button
-                                                key={mod.id}
-                                                onClick={() => {
-                                                    if (isChecked) setSelectedModules(prev => prev.filter(m => m !== mod.id));
-                                                    else setSelectedModules(prev => [...prev, mod.id]);
-                                                }}
-                                                className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isChecked ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}
-                                            >
-                                                <span className={`font-bold ${isChecked ? 'text-blue-700' : 'text-gray-700'}`}>{mod.name}</span>
-                                                <div className={`w-5 h-5 rounded-md flex items-center justify-center ${isChecked ? 'bg-blue-500 text-white' : 'border-2 border-gray-300'}`}>
-                                                    {isChecked && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
+                                <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-6">
+
+                                    {/* Presets de Planos */}
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Aplicar Plano Rápido</h3>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {PREDEFINED_PLANS.map((plan, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => setSelectedModules(plan.modules)}
+                                                    className="flex items-start text-left p-3 rounded-xl border border-blue-100 bg-blue-50/50 hover:bg-blue-100/50 transition-colors group"
+                                                >
+                                                    <div className="bg-blue-100 text-blue-600 rounded-lg p-2 mr-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                                        <Sparkles className="w-4 h-4" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-blue-900">{plan.name}</p>
+                                                        <p className="text-xs text-blue-700/70">{plan.description}</p>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Módulos Individuais */}
+                                    <div>
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex justify-between items-center">
+                                            <span>Módulos Individuais</span>
+                                            <button onClick={() => setSelectedModules([])} className="text-red-500 hover:text-red-700 text-[10px] bg-red-50 px-2 py-1 rounded">Limpar Todos</button>
+                                        </h3>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {AVAILABLE_MODULES.map(mod => {
+                                                const isChecked = selectedModules.includes(mod.id);
+                                                return (
+                                                    <button
+                                                        key={mod.id}
+                                                        onClick={() => {
+                                                            if (isChecked) setSelectedModules(prev => prev.filter(m => m !== mod.id));
+                                                            else setSelectedModules(prev => [...prev, mod.id]);
+                                                        }}
+                                                        className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${isChecked ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}
+                                                    >
+                                                        <span className={`text-xs font-bold ${isChecked ? 'text-blue-700' : 'text-gray-700'}`}>{mod.name}</span>
+                                                        <div className={`w-4 h-4 rounded-md flex items-center justify-center ${isChecked ? 'bg-blue-500 text-white' : 'border-2 border-gray-300'}`}>
+                                                            {isChecked && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex gap-3">
                                     <button
