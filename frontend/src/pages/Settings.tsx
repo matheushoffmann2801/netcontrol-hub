@@ -4,6 +4,7 @@ import {
     Shield, Key, Bell, Globe, Server, Save, Loader2,
     User, Mail, Camera, CheckCircle2, Lock
 } from 'lucide-react';
+import { api } from '../services/api';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ export function Settings() {
     // Profile state
     const [profileName, setProfileName] = useState(admin?.name ?? '');
     const [profileEmail] = useState(admin?.email ?? '');
+    const [profilePassword, setProfilePassword] = useState('');
 
     // Hub settings
     const [settings, setSettings] = useState({
@@ -71,11 +73,22 @@ export function Settings() {
     const initial = getFirstName(admin).charAt(0).toUpperCase();
 
     const handleSaveProfile = async () => {
+        if (!admin?.id) return;
         setSavingProfile(true);
-        await new Promise(r => setTimeout(r, 600));
-        setDisplayName(profileName);
-        toast.success('Perfil atualizado com sucesso!');
-        setSavingProfile(false);
+        try {
+            const dataToUpdate: any = { name: profileName };
+            if (profilePassword.trim()) {
+                dataToUpdate.password = profilePassword;
+            }
+            await api.put(`/admins/${admin.id}`, dataToUpdate);
+            setDisplayName(profileName);
+            toast.success('Perfil atualizado com sucesso!');
+            setProfilePassword(''); // clears the field after saving
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Erro ao atualizar perfil.');
+        } finally {
+            setSavingProfile(false);
+        }
     };
 
     const handleSave = async () => {
@@ -146,7 +159,7 @@ export function Settings() {
                             <p className="text-[11px] text-muted-foreground">Este é o nome mostrado na saudação do Dashboard.</p>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="profile-email" className="flex items-center gap-1.5">
+                            <Label htmlFor="profile-email" className="flex items-center gap-1.5 border-t border-border mt-2 pt-4 sm:border-t-0 sm:mt-0 sm:pt-0">
                                 <Mail className="w-3.5 h-3.5 text-muted-foreground" />
                                 E-mail
                             </Label>
@@ -157,6 +170,20 @@ export function Settings() {
                                 className="opacity-60 cursor-not-allowed"
                             />
                             <p className="text-[11px] text-muted-foreground">E-mail não pode ser alterado aqui.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="profile-password" className="flex items-center gap-1.5">
+                                <Key className="w-3.5 h-3.5 text-muted-foreground" />
+                                Nova Senha
+                            </Label>
+                            <Input
+                                id="profile-password"
+                                type="password"
+                                placeholder="Deixe em branco para manter"
+                                value={profilePassword}
+                                onChange={e => setProfilePassword(e.target.value)}
+                            />
+                            <p className="text-[11px] text-muted-foreground">Preencha apenas se quiser mudar sua senha.</p>
                         </div>
                     </div>
 

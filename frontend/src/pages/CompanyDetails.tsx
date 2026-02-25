@@ -4,7 +4,8 @@ import { api } from '../services/api';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import {
     ArrowLeft, CheckCircle2, XCircle, Shield,
-    Activity, Server, History, RefreshCcw, Power, Eye, Fingerprint, Database
+    Activity, Server, History, RefreshCcw, Power, Eye, Fingerprint, Database,
+    Copy, Edit, Check
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
@@ -149,16 +150,56 @@ export function CompanyDetails() {
     const handleSaveEdit = async () => {
         setIsActionLoading(true);
         try {
-            await api.put(`/companies/${id}`, {
+            const res = await api.put(`/companies/${id}`, {
                 name: editName,
                 document: editDocument,
                 status: company?.status
             });
             toast.success('Empresa atualizada com sucesso!');
+            if (res.data.newToken) {
+                toast.success('Nova licença gerada automaticamente devido à alteração de cadastro.');
+            }
             setEditMode(false);
             loadCompanyData();
         } catch (error) {
             toast.error('Erro ao atualizar empresa.');
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const handleCopyToken = () => {
+        if (!currentLicense) return;
+        navigator.clipboard.writeText(currentLicense.token);
+        toast.success('Token copiado para a área de transferência!');
+    };
+
+    const AVAILABLE_MODULES = [
+        { id: 'FINANCE', name: 'Financeiro' },
+        { id: 'SUPPORT', name: 'Suporte / CRM' },
+        { id: 'REPORTS', name: 'Relatórios Avançados' },
+        { id: 'INVENTORY', name: 'Estoque' }
+    ];
+
+    const [editingModules, setEditingModules] = useState(false);
+    const [selectedModules, setSelectedModules] = useState<string[]>([]);
+
+    const openModuleEditor = () => {
+        setSelectedModules([...(currentLicense?.modules || [])]);
+        setEditingModules(true);
+    };
+
+    const handleSaveModules = async () => {
+        setIsActionLoading(true);
+        try {
+            await api.put(`/companies/${id}/modules`, {
+                modules: selectedModules
+            });
+            toast.success('Módulos atualizados com sucesso! Nova licença gerada.');
+            setEditingModules(false);
+            loadCompanyData();
+        } catch (error: any) {
+            toast.error('Erro ao atualizar módulos.');
         } finally {
             setIsActionLoading(false);
         }
@@ -285,7 +326,12 @@ export function CompanyDetails() {
                                         </div>
                                     </div>
                                     <div>
-                                        <p className="text-xs font-bold text-gray-400 pl-1 mb-1">MÓDULOS LIBERADOS</p>
+                                        <div className="flex items-center justify-between mb-1 pl-1">
+                                            <p className="text-xs font-bold text-gray-400">MÓDULOS LIBERADOS</p>
+                                            <button onClick={openModuleEditor} className="text-blue-500 hover:text-blue-700 p-1" title="Editar Módulos">
+                                                <Edit className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
                                         <div className="flex flex-wrap gap-2">
                                             {currentLicense.modules.length > 0 ? currentLicense.modules.map((m: string) => (
                                                 <span key={m} className="px-3 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-lg border border-purple-100">
@@ -295,7 +341,12 @@ export function CompanyDetails() {
                                         </div>
                                     </div>
                                     <div className="col-span-2">
-                                        <p className="text-xs font-bold text-gray-400 pl-1 mb-1">TOKEN GERADO (HASH)</p>
+                                        <div className="flex items-center justify-between mb-1 pl-1">
+                                            <p className="text-xs font-bold text-gray-400">TOKEN GERADO (HASH)</p>
+                                            <button onClick={handleCopyToken} className="flex items-center gap-1 text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+                                                <Copy className="w-3.5 h-3.5" /> Copiar Licença
+                                            </button>
+                                        </div>
                                         <div className="font-mono text-[10px] text-gray-400 bg-gray-50 p-3 rounded-xl border border-gray-100 break-all max-h-24 overflow-y-auto">
                                             {currentLicense.token}
                                         </div>
@@ -409,6 +460,53 @@ export function CompanyDetails() {
                             </button>
                         </div>
                     </div>
+
+                    {/* Module Editor Modal */}
+                    {editingModules && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                                <div className="px-6 py-4 border-b border-gray-100">
+                                    <h2 className="text-lg font-bold text-gray-900">Editar Módulos</h2>
+                                    <p className="text-xs text-gray-500 mt-1">Selecione quais módulos esta empresa tem acesso. Salvar gerará uma nova licença sincronizável.</p>
+                                </div>
+                                <div className="p-6 space-y-3">
+                                    {AVAILABLE_MODULES.map(mod => {
+                                        const isChecked = selectedModules.includes(mod.id);
+                                        return (
+                                            <button
+                                                key={mod.id}
+                                                onClick={() => {
+                                                    if (isChecked) setSelectedModules(prev => prev.filter(m => m !== mod.id));
+                                                    else setSelectedModules(prev => [...prev, mod.id]);
+                                                }}
+                                                className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isChecked ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}
+                                            >
+                                                <span className={`font-bold ${isChecked ? 'text-blue-700' : 'text-gray-700'}`}>{mod.name}</span>
+                                                <div className={`w-5 h-5 rounded-md flex items-center justify-center ${isChecked ? 'bg-blue-500 text-white' : 'border-2 border-gray-300'}`}>
+                                                    {isChecked && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+                                    <button
+                                        onClick={() => setEditingModules(false)}
+                                        className="flex-1 px-4 py-2.5 rounded-xl font-bold text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={handleSaveModules}
+                                        disabled={isActionLoading}
+                                        className="flex-1 px-4 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 flex justify-center items-center"
+                                    >
+                                        {isActionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Salvar Módulos'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                 </div>
             )}

@@ -348,7 +348,47 @@ app.put('/companies/:id', requireAdmin, async (req, res) => {
       });
     }
 
-    res.json({ message: 'Empresa atualizada com sucesso!', company });
+    // Verifica se a empresa teve alteração de nome ou documento para forçar re-geração de licença se possível
+    let lastTokenGenerated = undefined;
+    if (currentCompany.name !== name || currentCompany.document !== document) {
+      const lastLicense = await prisma.license.findFirst({
+        where: { companyId: req.params.id },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (lastLicense) {
+        const expTime = new Date(lastLicense.expiresAt);
+        if (expTime > new Date()) { // Só re-emite se a licença não estiver expirada
+          const modulesArr = JSON.parse(lastLicense.modules);
+          const tokenPayload = {
+            companyId: company.id,
+            companyName: company.name,
+            serial: company.document,
+            modules: modulesArr,
+            exp: Math.floor(expTime.getTime() / 1000)
+          };
+          const token = jwt.sign(tokenPayload, JWT_SECRET);
+          const newLic = await prisma.license.create({
+            data: {
+              companyId: company.id,
+              token,
+              expiresAt: expTime,
+              modules: JSON.stringify(modulesArr)
+            }
+          });
+          lastTokenGenerated = token;
+          await prisma.auditLog.create({
+            data: {
+              companyId: req.params.id,
+              action: 'LICENSE_UPDATED',
+              details: `Nova licença gerada devido a alteração cadastral.`,
+              ip: req.ip || req.socket.remoteAddress || 'unknown'
+            }
+          });
+        }
+      }
+    }
+
+    res.json({ message: 'Empresa atualizada com sucesso!', company, newToken: lastTokenGenerated });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao atualizar empresa' });
@@ -591,13 +631,13 @@ app.post('/heartbeat', async (req, res) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // 1. A MÁGICA ACONTECE AQUI: O jwt.verify checa matematicamente se a licença é válida e não expirou
-    const decoded = jwt.verify(token, JWT_SECRET) as { companyId: string, modules: string[] };
+    // 1. Ignorar expiração inicialmente para ler de forma segura qual empresa está chamando
+    const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as { companyId: string, modules: string[], exp?: number };
 
-    // 2. Antes de liberar o sinal verde, verificamos no banco a situação ATUAL da empresa
+    // 2. Buscar a empresa e sua última licença ativa
     const company = await prisma.company.findUnique({
       where: { id: decoded.companyId },
-      select: { status: true }
+      select: { status: true, licenses: { orderBy: { createdAt: 'desc' }, take: 1 } }
     });
 
     if (!company) {
@@ -607,29 +647,46 @@ app.post('/heartbeat', async (req, res) => {
 
     // REGRA DE INADIMPLÊNCIA / BLOQUEIO GERAL:
     if (company.status === 'SUSPENDED') {
-      res.status(403).json({
-        action: 'FORCE_LOCK',
-        reason: 'INADIMPLENCIA'
-      });
+      res.status(403).json({ action: 'FORCE_LOCK', reason: 'INADIMPLENCIA' });
       return;
     }
 
     if (company.status === 'CANCELED') {
-      res.status(403).json({
-        error: 'Licença cancelada permanentemente.',
-        reason: 'CANCELED',
-        valid: false
-      });
+      res.status(403).json({ error: 'Licença cancelada permanentemente.', reason: 'CANCELED', valid: false });
       return;
     }
 
-    // 3. Se passou da verificação e não está suspensa, atualizamos o "Visto por último" no banco
+    // 3. Verificação de Tokens e Expiracões
+    const latestLicense = company.licenses[0];
+    let newToken = undefined;
+
+    if (latestLicense) {
+      // Se a licença no banco for diferente da que o cliente enviou (ex: renovação, mudança de nome/módulo)
+      if (latestLicense.token !== token) {
+        newToken = latestLicense.token;
+      }
+
+      // Verifica se a última licença do banco está expirada
+      if (new Date(latestLicense.expiresAt) < new Date()) {
+        res.status(403).json({ error: 'A licença da empresa está expirada.', valid: false });
+        return;
+      }
+    } else {
+      // Se não tiver licenças no banco, não deveria rolar, mas previne quebra
+      // Valida se a data do próprio token (caso não exista DB por algum motivo) expirou
+      if (decoded.exp && (decoded.exp * 1000) < Date.now()) {
+        res.status(403).json({ error: 'Licença expirada', valid: false });
+        return;
+      }
+    }
+
+    // 4. Se passou da verificação e não está suspensa, atualizamos o "Visto por último"
     await prisma.company.update({
       where: { id: decoded.companyId },
-      data: { lastSeenAt: new Date() } // Grava a data e hora exatas de agora
+      data: { lastSeenAt: new Date() }
     });
 
-    // 4. Salvar Telemetria (se enviada)
+    // 5. Salvar Telemetria
     if (cpuUsage !== undefined && ramUsage !== undefined && activeUsers !== undefined) {
       await prisma.telemetry.create({
         data: {
@@ -641,11 +698,12 @@ app.post('/heartbeat', async (req, res) => {
       });
     }
 
-    // 5. Devolvemos o sinal verde para o netcontrol continuar rodando
+    // 6. Devolvemos o sinal verde com auto-sync (se houver newToken, o cliente atualiza .env)
     res.status(200).json({
       message: 'Heartbeat recebido. Sistema Online e Licença Válida.',
       valid: true,
-      modules: decoded.modules
+      modules: latestLicense ? JSON.parse(latestLicense.modules) : decoded.modules,
+      newToken: newToken
     });
 
   } catch (error: any) {
