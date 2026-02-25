@@ -3,10 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api, sendNotification } from '../services/api';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import {
+<<<<<<< HEAD
     ArrowLeft, CheckCircle2, XCircle, Shield, Cpu, MemoryStick,
     Activity, Server, History, RefreshCcw, Power, Eye, Fingerprint,
     Send, MessageSquare, Edit2, Save, X, Trash2, Wifi, WifiOff,
     AlertTriangle, Info, Users
+=======
+    ArrowLeft, CheckCircle2, XCircle, Shield,
+    Activity, Server, History, RefreshCcw, Power, Eye, Fingerprint, Database,
+    Copy, Edit, Check, Sparkles, Save
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -234,11 +240,120 @@ export function CompanyDetails() {
         loadCompanyData();
     });
 
+<<<<<<< HEAD
     const handleSendNotification = async (data: { title: string; message: string; type: string }) => {
         if (!company) return;
         await sendNotification(company.id, data);
         toast.success('Notificação enviada!');
         loadCompanyData();
+=======
+        setIsActionLoading(true);
+        try {
+            await api.delete(`/companies/${id}`);
+            toast.success('Empresa excluída com sucesso!');
+            setTimeout(() => navigate('/companies'), 1000);
+        } catch (error) {
+            toast.error('Erro ao excluir empresa.');
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const [editMode, setEditMode] = useState(false);
+    const [editName, setEditName] = useState('');
+    const [editDocument, setEditDocument] = useState('');
+
+    useEffect(() => {
+        if (company) {
+            setEditName(company.name);
+            setEditDocument(company.document);
+        }
+    }, [company]);
+
+    const handleSaveEdit = async () => {
+        setIsActionLoading(true);
+        try {
+            const res = await api.put(`/companies/${id}`, {
+                name: editName,
+                document: editDocument,
+                status: company?.status
+            });
+            toast.success('Empresa atualizada com sucesso!');
+            if (res.data.newToken) {
+                toast.success('Nova licença gerada automaticamente devido à alteração de cadastro.');
+            }
+            setEditMode(false);
+            loadCompanyData();
+        } catch (error) {
+            toast.error('Erro ao atualizar empresa.');
+        } finally {
+            setIsActionLoading(false);
+        }
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
+    };
+
+    const handleCopyToken = () => {
+        if (!currentLicense) return;
+        navigator.clipboard.writeText(currentLicense.token);
+        toast.success('Token copiado para a área de transferência!');
+    };
+
+    const AVAILABLE_MODULES = [
+        { id: 'BASE', name: 'Módulo Base' },
+        { id: 'FINANCEIRO', name: 'Financeiro' },
+        { id: 'INVENTARIO', name: 'Inventário' },
+        { id: 'ATIVOS_FROTA', name: 'Ativos e Frota' },
+        { id: 'OPERACIONAL', name: 'Operacional' },
+        { id: 'PAINEL_TECNICO', name: 'Painel Técnico' },
+        { id: 'CONTRATOS', name: 'Contratos' },
+        { id: 'FULL_ACCESS', name: 'Master / Acesso Total' }
+    ];
+
+    const [editingModules, setEditingModules] = useState(false);
+    const [selectedModules, setSelectedModules] = useState<string[]>([]);
+    const [activePlanTab, setActivePlanTab] = useState<'PRESET' | 'CUSTOM'>('PRESET');
+
+    const handleSelectAll = () => setSelectedModules(AVAILABLE_MODULES.map(m => m.id));
+    const handleClearAll = () => setSelectedModules([]);
+    const isAllSelected = selectedModules.length === AVAILABLE_MODULES.length;
+
+    const PREDEFINED_PLANS = [
+        {
+            name: 'Plano Básico',
+            description: 'Gestão Financeira e Cadastros',
+            modules: ['BASE', 'FINANCEIRO', 'INVENTARIO']
+        },
+        {
+            name: 'Plano Plus',
+            description: 'Gestão Completa c/ Operacional',
+            modules: ['BASE', 'FINANCEIRO', 'INVENTARIO', 'OPERACIONAL', 'CONTRATOS']
+        },
+        {
+            name: 'Acesso Total (Master)',
+            description: 'Todos os módulos + Painel Técnico',
+            modules: ['BASE', 'FINANCEIRO', 'INVENTARIO', 'ATIVOS_FROTA', 'OPERACIONAL', 'PAINEL_TECNICO', 'CONTRATOS', 'FULL_ACCESS']
+        }
+    ];
+
+    const openModuleEditor = () => {
+        setSelectedModules([...(currentLicense?.modules || [])]);
+        setEditingModules(true);
+    };
+
+    const handleSaveModules = async () => {
+        setIsActionLoading(true);
+        try {
+            await api.put(`/companies/${id}/modules`, {
+                modules: selectedModules
+            });
+            toast.success('Módulos atualizados com sucesso! Nova licença gerada.');
+            setEditingModules(false);
+            loadCompanyData();
+        } catch (error: any) {
+            toast.error('Erro ao atualizar módulos.');
+        } finally {
+            setIsActionLoading(false);
+        }
     };
 
     const isOnline = useMemo(() => {
@@ -366,6 +481,7 @@ export function CompanyDetails() {
                                                 className="h-11 px-4 rounded-xl bg-white/[0.04] border border-white/[0.07] text-white text-sm outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
                                             />
                                         </div>
+<<<<<<< HEAD
 
                                         <div>
                                             <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2">Módulos Ativos</p>
@@ -390,6 +506,379 @@ export function CompanyDetails() {
                                     </div>
                                 ) : (
                                     <p className="text-white/30 italic text-sm">Nenhuma licença gerada.</p>
+=======
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1 pl-1">
+                                            <p className="text-xs font-bold text-gray-400">MÓDULOS LIBERADOS</p>
+                                            <button onClick={openModuleEditor} className="text-blue-500 hover:text-blue-700 p-1" title="Editar Módulos">
+                                                <Edit className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {currentLicense.modules.length > 0 ? currentLicense.modules.map((m: string) => (
+                                                <span key={m} className="px-3 py-1 bg-purple-50 text-purple-700 text-xs font-bold rounded-lg border border-purple-100">
+                                                    {m}
+                                                </span>
+                                            )) : <span className="text-sm text-gray-400 italic">Nenhum</span>}
+                                        </div>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <div className="flex items-center justify-between mb-1 pl-1">
+                                            <p className="text-xs font-bold text-gray-400">TOKEN GERADO (HASH)</p>
+                                            <button onClick={handleCopyToken} className="flex items-center gap-1 text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors">
+                                                <Copy className="w-3.5 h-3.5" /> Copiar Licença
+                                            </button>
+                                        </div>
+                                        <div className="font-mono text-[10px] text-gray-400 bg-gray-50 p-3 rounded-xl border border-gray-100 break-all max-h-24 overflow-y-auto">
+                                            {currentLicense.token}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 italic">Nenhuma licença gerada.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Painel Direito: Ações Management */}
+                    <div className="space-y-4">
+                        <div className="bg-white/50 backdrop-blur-xl p-5 rounded-3xl border border-gray-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                            <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-widest">Painel de Controle</h3>
+
+                            <div className="space-y-3">
+                                <button
+                                    onClick={handleForceSync}
+                                    disabled={isActionLoading || !isOnline}
+                                    className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white p-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 shadow-lg shadow-blue-500/25 active:scale-[0.98]"
+                                >
+                                    <RefreshCcw className="w-4 h-4" />
+                                    <span>Forçar Sincronização</span>
+                                </button>
+
+                                <button
+                                    onClick={handleRenewLicense}
+                                    disabled={isActionLoading || company.status === 'CANCELED'}
+                                    className="w-full flex items-center justify-center space-x-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-200 p-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
+                                >
+                                    <Shield className="w-4 h-4" />
+                                    <span>Renovar +30 Dias</span>
+                                </button>
+
+                                <div className="border-t border-gray-200 my-4" />
+
+                                <button
+                                    onClick={toggleStatus}
+                                    disabled={isActionLoading}
+                                    className={`w-full flex items-center justify-center space-x-2 p-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${company.status === 'SUSPENDED'
+                                        ? 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300'
+                                        : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                                        }`}
+                                >
+                                    <Power className="w-4 h-4" />
+                                    <span>{company.status === 'SUSPENDED' ? 'Remover Bloqueio' : 'Bloquear Instância'}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Card de Edição da Empresa */}
+                        <div className="bg-white/50 backdrop-blur-xl p-5 rounded-3xl border border-gray-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                            <h3 className="text-sm font-bold text-gray-900 mb-4 uppercase tracking-widest">Editar Informações</h3>
+                            {editMode ? (
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">Nome da Empresa</label>
+                                        <input
+                                            type="text"
+                                            value={editName}
+                                            onChange={(e) => setEditName(e.target.value)}
+                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block">CNPJ / Documento</label>
+                                        <input
+                                            type="text"
+                                            value={editDocument}
+                                            onChange={(e) => setEditDocument(e.target.value)}
+                                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                        />
+                                    </div>
+                                    <div className="flex gap-2 pt-2">
+                                        <button
+                                            onClick={handleSaveEdit}
+                                            disabled={isActionLoading}
+                                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+                                        >
+                                            {isActionLoading ? 'Salvando...' : 'Salvar'}
+                                        </button>
+                                        <button
+                                            onClick={() => { setEditMode(false); setEditName(company.name); setEditDocument(company.document); }}
+                                            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl text-sm font-bold transition-all"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => setEditMode(true)}
+                                    className="w-full flex items-center justify-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 p-3.5 rounded-xl font-bold text-sm transition-all"
+                                >
+                                    <span>✏️ Editar Dados da Empresa</span>
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Card Zona de Perigo */}
+                        <div className="bg-red-50/50 backdrop-blur-xl p-5 rounded-3xl border border-red-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                            <h3 className="text-sm font-bold text-red-800 mb-3 uppercase tracking-widest">Zona de Perigo</h3>
+                            <p className="text-xs text-red-600/70 mb-4">Excluir esta empresa removerá permanentemente todos os dados, licenças e histórico. A instância do cliente será bloqueada.</p>
+                            <button
+                                onClick={handleDeleteCompany}
+                                disabled={isActionLoading}
+                                className="w-full flex items-center justify-center space-x-2 bg-red-600 hover:bg-red-700 text-white p-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50 shadow-lg shadow-red-500/25"
+                            >
+                                <span>🗑️ Excluir Empresa Permanentemente</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Module Editor Modal (Mobile-First Premium) */}
+                    {editingModules && (
+                        <div className="fixed inset-0 z-50 flex flex-col justify-end md:justify-center md:items-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">
+                            <div className="bg-white rounded-t-[32px] md:rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh] md:max-h-[85vh] animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-300">
+
+                                {/* Header */}
+                                <div className="px-6 md:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 relative">
+                                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200 rounded-full md:hidden" />
+                                    <div>
+                                        <h2 className="text-xl font-black text-slate-900 mt-2 md:mt-0">Gestão de Acesso</h2>
+                                        <p className="text-xs font-medium text-slate-500 mt-1">Defina o plano ou escolha módulos específicos.</p>
+                                    </div>
+                                    <button onClick={() => setEditingModules(false)} className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors mt-2 md:mt-0">
+                                        <XCircle className="w-6 h-6" />
+                                    </button>
+                                </div>
+
+                                {/* Tabs Plana / Personalizado */}
+                                <div className="flex px-6 md:px-8 pt-2 space-x-6 shrink-0 border-b border-slate-100">
+                                    <button
+                                        onClick={() => setActivePlanTab('PRESET')}
+                                        className={`pb-3 text-sm font-bold border-b-2 transition-all tracking-wide ${activePlanTab === 'PRESET' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Planos Prontos
+                                    </button>
+                                    <button
+                                        onClick={() => setActivePlanTab('CUSTOM')}
+                                        className={`pb-3 text-sm font-bold border-b-2 transition-all tracking-wide ${activePlanTab === 'CUSTOM' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Módulos Individuais
+                                    </button>
+                                </div>
+
+                                {/* Corpo Rolável */}
+                                <div className="p-6 md:px-8 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50">
+
+                                    {activePlanTab === 'PRESET' && (
+                                        <div className="space-y-3 animate-in fade-in slide-in-from-left-4 duration-300">
+                                            {PREDEFINED_PLANS.map((plan, idx) => {
+                                                const isCurrentPlan = plan.modules.length === selectedModules.length && plan.modules.every(m => selectedModules.includes(m));
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => setSelectedModules(plan.modules)}
+                                                        className={`w-full flex items-center text-left p-4 rounded-2xl border-2 transition-all group relative overflow-hidden ${isCurrentPlan ? 'border-blue-500 bg-blue-50/80 shadow-sm' : 'border-slate-200/60 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
+                                                    >
+                                                        {isCurrentPlan && <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full -mt-10 -mr-10" />}
+
+                                                        <div className={`p-3 rounded-xl mr-4 shrink-0 transition-colors ${isCurrentPlan ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>
+                                                            {idx === 2 ? <Shield className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex justify-between items-center mb-0.5">
+                                                                <p className={`text-base font-black ${isCurrentPlan ? 'text-blue-900' : 'text-slate-800'}`}>{plan.name}</p>
+                                                                {isCurrentPlan && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
+                                                            </div>
+                                                            <p className={`text-xs font-medium ${isCurrentPlan ? 'text-blue-700/80' : 'text-slate-500'}`}>{plan.description}</p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {activePlanTab === 'CUSTOM' && (
+                                        <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                                            {/* Master Toggle */}
+                                            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center cursor-pointer" onClick={() => isAllSelected ? handleClearAll() : handleSelectAll()}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-lg ${isAllSelected ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                        <Shield className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-slate-900 text-sm">Acesso Master (Geral)</h4>
+                                                        <p className="text-xs text-slate-500 font-medium">Habilitar absolutamente todos os módulos</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isAllSelected ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                                                >
+                                                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isAllSelected ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+
+                                            {/* Modulos Matrix */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {AVAILABLE_MODULES.map(mod => {
+                                                    const isChecked = selectedModules.includes(mod.id);
+                                                    return (
+                                                        <button
+                                                            key={mod.id}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (isChecked) setSelectedModules(prev => prev.filter(m => m !== mod.id));
+                                                                else setSelectedModules(prev => [...prev, mod.id]);
+                                                            }}
+                                                            className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isChecked ? 'border-blue-500 bg-blue-50/50' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
+                                                        >
+                                                            <span className={`text-sm font-bold ${isChecked ? 'text-blue-800' : 'text-slate-600'}`}>{mod.name}</span>
+                                                            <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${isChecked ? 'bg-blue-600 text-white shadow-sm' : 'border-2 border-slate-200 bg-slate-50'}`}>
+                                                                {isChecked && <Check className="w-3.5 h-3.5" strokeWidth={3.5} />}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                </div>
+
+                                {/* Footer Actions */}
+                                <div className="px-6 md:px-8 py-5 border-t border-slate-100 bg-white flex gap-3 shrink-0 pb-safe">
+                                    <button
+                                        onClick={() => setEditingModules(false)}
+                                        className="flex-1 py-3.5 rounded-xl font-bold text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all active:scale-[0.98]"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={handleSaveModules}
+                                        disabled={isActionLoading || selectedModules.length === 0}
+                                        className="flex-[2] py-3.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/25 transition-all disabled:opacity-50 disabled:shadow-none active:scale-[0.98] flex justify-center items-center gap-2"
+                                    >
+                                        {isActionLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Save className="w-4 h-4" /> Exportar Licença</>}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            )}
+
+            {/* TAB CONTENT: TELEMETRY */}
+            {activeTab === 'TELEMETRY' && (
+                <div className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                <Server className="w-6 h-6 text-blue-500" />
+                                Saúde do Servidor do Cliente
+                            </h3>
+                            <p className="text-sm text-gray-500 mt-1">Consumo de CPU e RAM reportados nos Últimos Heartbeats.</p>
+                        </div>
+                        {telemetry.length > 0 && (
+                            <div className="flex space-x-4">
+                                <div className="text-right">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase">CPU Atual</p>
+                                    <p className="text-xl font-black text-gray-800">{telemetry[telemetry.length - 1].cpuUsage}%</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase">RAM Atual</p>
+                                    <p className="text-xl font-black text-gray-800">{telemetry[telemetry.length - 1].ramUsage}%</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="h-[400px] w-full">
+                        {telemetry.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                                        </linearGradient>
+                                        <linearGradient id="colorRam" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                                    <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} dy={10} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#6b7280' }} />
+                                    <RechartsTooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }} />
+                                    <Area type="monotone" dataKey="cpu" name="CPU Usage (%)" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorCpu)" />
+                                    <Area type="monotone" dataKey="ram" name="RAM Usage (%)" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRam)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3">
+                                <Activity className="w-12 h-12 opacity-20" />
+                                <p>Nenhuma telemetria recebida do cliente ainda.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* TAB CONTENT: AUDIT LOGS */}
+            {activeTab === 'AUDIT' && (
+                <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="p-6 border-b border-gray-100 flex items-center bg-gray-50/50">
+                        <Fingerprint className="w-5 h-5 text-gray-400 mr-3" />
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900">Rastreabilidade</h3>
+                            <p className="text-sm text-gray-500">Histórico de ações (Audit Trail) deste cliente.</p>
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="bg-gray-50">
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">Ação</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">Descrição</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">IP Origem</th>
+                                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">Data</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {logs.map(log => (
+                                    <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className="px-2.5 py-1 text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-200 rounded-lg font-mono">
+                                                {log.action}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-700 font-medium">
+                                            {log.details || '—'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-mono">
+                                            {log.ip || 'Local/Internal'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium text-right">
+                                            {new Date(log.createdAt).toLocaleString()}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {logs.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-12 text-center text-gray-400 text-sm">Nenhum log de auditoria encontrado.</td>
+                                    </tr>
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
                                 )}
                             </div>
 

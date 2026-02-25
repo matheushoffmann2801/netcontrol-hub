@@ -1,13 +1,20 @@
 import React from 'react';
 import {
+<<<<<<< HEAD
   Users, Server, Activity, TrendingUp, Globe, Cpu,
   ArrowUpRight, ArrowDownRight, Wifi, Clock,
+=======
+  Server, Activity, ShieldCheck,
+  ArrowUpRight, ArrowDownRight, Globe, Cpu, TrendingUp,
+  Wifi, Clock, Building2
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { getStats } from '../services/api';
+<<<<<<< HEAD
 import { useAuthStore } from '../store/useAuthStore';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +24,27 @@ function Skeleton({ className }: { className?: string }) {
 }
 
 /* ─── KPI Card ─── */
+=======
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { useAuthStore, getFirstName } from '../store/useAuthStore';
+
+/* ─── Stat Card Skeleton ─── */
+function StatSkeleton() {
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-3">
+        <div className="flex items-center gap-3"><div className="skeleton w-10 h-10 rounded-xl" /><div className="skeleton h-3 flex-1" /></div>
+        <div className="skeleton h-8 w-24" />
+        <div className="skeleton h-2.5 w-32" />
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── KPI Stat Card ─── */
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
 interface StatCardProps {
   title: string;
   value: string | number;
@@ -26,8 +54,13 @@ interface StatCardProps {
   accent?: string;
 }
 
+<<<<<<< HEAD
 function StatCard({ title, value, subtext, icon: Icon, trend, accent = '#6366f1' }: StatCardProps) {
   const trendUp = trend !== undefined && trend >= 0;
+=======
+function StatCard({ title, value, subtext, icon: Icon, trend, stripeClass, iconBg, iconColor }: StatCardProps) {
+  const pos = trend !== undefined && trend >= 0;
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   return (
     <div
       className="relative rounded-2xl p-5 border border-white/[0.06] bg-white/[0.02] overflow-hidden group hover:border-white/[0.1] hover:-translate-y-0.5 transition-all duration-300"
@@ -46,13 +79,18 @@ function StatCard({ title, value, subtext, icon: Icon, trend, accent = '#6366f1'
             <Icon className="w-5 h-5" style={{ color: accent }} strokeWidth={1.8} />
           </div>
           {trend !== undefined && (
+<<<<<<< HEAD
             <div className={cn(
               'flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full',
               trendUp ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
             )}>
               {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+=======
+            <span className={cn('flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full', pos ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600')}>
+              {pos ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
               {Math.abs(trend)}%
-            </div>
+            </span>
           )}
         </div>
         <p className="text-3xl font-black text-white tracking-tight">{value}</p>
@@ -63,8 +101,13 @@ function StatCard({ title, value, subtext, icon: Icon, trend, accent = '#6366f1'
   );
 }
 
+<<<<<<< HEAD
 /* ─── Custom Tooltip ─── */
 function ChartTooltip({ active, payload, label }: any) {
+=======
+/* ─── Chart Tooltip ─── */
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; color: string }[]; label?: string }) {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[#12141e] border border-white/10 rounded-xl px-4 py-3 shadow-2xl text-sm">
@@ -89,11 +132,16 @@ function ActivityRow({ name, time, pct, color }: { name: string; time: string; p
         <p className="text-xs text-white/30">{time}</p>
       </div>
       <div className="flex items-center gap-3 shrink-0">
+<<<<<<< HEAD
         <div className="w-24 h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-700"
             style={{ width: `${pct}%`, background: color }}
           />
+=======
+        <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
         </div>
         <span className="text-xs font-black text-white/60 w-8 text-right">{pct}%</span>
       </div>
@@ -119,20 +167,24 @@ export function Dashboard() {
       .catch(() => setLoading(false));
   }, []);
 
+<<<<<<< HEAD
   const firstName = admin?.email?.split('@')[0] ?? 'Admin';
   const capitalFirst = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+=======
+  const firstName = getFirstName(admin);
+
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+
+  const totalPct = stats?.activeCompanies
+    ? Math.min(100, Math.round(((stats.onlineInstances ?? 0) / stats.activeCompanies) * 100))
+    : 0;
 
   const statusData = [
     { name: 'Online', value: stats?.onlineInstances ?? 0, color: '#10b981' },
     { name: 'Offline', value: stats?.offlineInstances ?? 0, color: '#6366f1' },
   ];
-
-  const growthData = stats?.growthData ?? [];
-  const totalPct = stats?.activeCompanies
-    ? Math.min(100, Math.round(((stats.onlineInstances ?? 0) / stats.activeCompanies) * 100))
-    : 0;
 
   const activities = [
     { name: 'Instâncias Online', time: 'Verificado agora', pct: totalPct, color: '#10b981' },
@@ -143,6 +195,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
+<<<<<<< HEAD
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -154,21 +207,39 @@ export function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full">
+=======
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted-foreground font-medium">{greeting},</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight mt-0.5">
+            {firstName} <span className="inline-block animate-bounce">👋</span>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Aqui está o resumo do seu sistema.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
             </span>
             <span className="text-xs font-bold text-emerald-400">Sistema Online</span>
           </div>
+<<<<<<< HEAD
           <div className="hidden sm:flex items-center gap-2 text-xs text-white/30 bg-white/[0.04] px-3 py-1.5 rounded-full border border-white/[0.06]">
+=======
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-full border border-border">
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
             <Clock className="w-3.5 h-3.5" />
-            {new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })}
+            <span>{new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
           </div>
         </div>
       </div>
 
       {/* KPI Cards */}
       {loading ? (
+<<<<<<< HEAD
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-36" />)}
         </div>
@@ -189,10 +260,32 @@ export function Dashboard() {
             <div>
               <h3 className="font-bold text-white flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-indigo-400" strokeWidth={2} />
+=======
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          {[...Array(4)].map((_, i) => <StatSkeleton key={i} />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+          <StatCard title="Empresas Ativas" value={stats?.activeCompanies ?? 0} subtext="Na base de dados" icon={Building2} trend={12} stripeClass="stripe-blue" iconBg="bg-blue-50" iconColor="text-blue-600" />
+          <StatCard title="Instâncias Online" value={stats?.onlineInstances ?? 0} subtext="Verificado agora" icon={Server} trend={5} stripeClass="stripe-emerald" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+          <StatCard title="Módulos Ativos" value={(stats?.activeCompanies ?? 0) * 3} subtext="Total estimado" icon={Cpu} stripeClass="stripe-violet" iconBg="bg-violet-50" iconColor="text-violet-600" />
+          <StatCard title="Uptime Global" value="99.9%" subtext="Últimos 30 dias" icon={Activity} trend={2} stripeClass="stripe-amber" iconBg="bg-amber-50" iconColor="text-amber-600" />
+        </div>
+      )}
+
+      {/* ── Charts ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingUp className="w-4 h-4 text-blue-600" strokeWidth={2} />
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
                 Crescimento de Base
               </h3>
               <p className="text-xs text-white/30 mt-0.5">Evolução de empresas ativas</p>
             </div>
+<<<<<<< HEAD
             <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white/[0.05] text-white/40 uppercase tracking-widest">Mensal</span>
           </div>
           <div className="h-64">
@@ -236,6 +329,52 @@ export function Dashboard() {
             <div className="absolute inset-0 flex flex-col items-center justify-center pb-10 pointer-events-none">
               <span className="text-3xl font-black text-white">{totalPct}%</span>
               <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">Online</span>
+=======
+            <p className="text-xs text-muted-foreground">Evolução de empresas ativas ao longo do tempo</p>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[220px] sm:h-[270px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stats?.growthData ?? []} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="4 4" stroke="hsl(214.3 31.8% 91.4%)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: 'hsl(215.4 16.3% 46.9%)', fontSize: 11, fontWeight: 600 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: 'hsl(215.4 16.3% 46.9%)', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'hsl(214.3 31.8% 91.4%)', strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="active" stroke="#3b82f6" strokeWidth={2.5} fill="url(#gradArea)" dot={false} activeDot={{ r: 5, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="flex flex-col">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" strokeWidth={2} />
+              Saúde da Rede
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Status das instâncias agora</p>
+          </CardHeader>
+          <CardContent className="flex-1 relative min-h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={statusData} cx="50%" cy="45%" innerRadius={60} outerRadius={85} paddingAngle={5} dataKey="value" strokeWidth={0} animationBegin={0} animationDuration={1200}>
+                  {statusData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                </Pie>
+                <Tooltip content={<ChartTooltip />} />
+                <Legend verticalAlign="bottom" iconType="circle" iconSize={8} formatter={v => <span className="text-xs font-semibold text-muted-foreground">{v}</span>} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pb-10 pointer-events-none">
+              <span className="text-3xl font-bold text-foreground">{totalPct}%</span>
+              <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Online</span>
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
             </div>
           </div>
         </div>
@@ -243,6 +382,7 @@ export function Dashboard() {
 
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+<<<<<<< HEAD
         {/* Metrics */}
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
           <h3 className="font-bold text-white flex items-center gap-2 mb-5">
@@ -250,10 +390,22 @@ export function Dashboard() {
             Métricas do Sistema
           </h3>
           <div className="space-y-5">
+=======
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="w-4 h-4 text-violet-600" strokeWidth={2} />
+              Métricas do Sistema
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Indicadores de desempenho em tempo real</p>
+          </CardHeader>
+          <CardContent className="space-y-5">
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
             {activities.map(a => <ActivityRow key={a.name} {...a} />)}
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* Quick Stats */}
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
           <h3 className="font-bold text-white flex items-center gap-2 mb-5">
@@ -275,6 +427,37 @@ export function Dashboard() {
             ))}
           </div>
         </div>
+=======
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Wifi className="w-4 h-4 text-blue-600" strokeWidth={2} />
+              Resumo Rápido
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Dados operacionais do momento</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Uptime Médio', value: '99.98%', icon: Wifi, color: 'bg-blue-50 text-blue-600' },
+                { label: 'Latência', value: '32ms', icon: Activity, color: 'bg-emerald-50 text-emerald-600' },
+                { label: 'Incidentes', value: '0', icon: ShieldCheck, color: 'bg-violet-50 text-violet-600' },
+                { label: 'Req / min', value: '1.4k', icon: Globe, color: 'bg-amber-50 text-amber-600' },
+              ].map(({ label, value, icon: Icon, color }) => (
+                <div key={label} className="bg-muted/30 rounded-xl p-4 flex flex-col items-start gap-2 hover:bg-muted/50 transition-colors">
+                  <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', color)}>
+                    <Icon className="w-4 h-4" strokeWidth={1.8} />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-foreground leading-none">{value}</p>
+                    <p className="text-xs text-muted-foreground font-medium mt-0.5">{label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
       </div>
     </div>
   );

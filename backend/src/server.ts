@@ -77,7 +77,7 @@ app.post('/auth/login', async (req, res) => {
     res.json({
       message: 'Login bem-sucedido',
       token,
-      admin: { id: admin.id, email: admin.email }
+      admin: { id: admin.id, email: admin.email, name: admin.name }
     });
     return;
   } catch (error) {
@@ -88,9 +88,43 @@ app.post('/auth/login', async (req, res) => {
 });
 
 // ==========================================
+// MIDDLEWARE: VALIDAR ADMIN
+// ==========================================
+const requireAdmin = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'Token não fornecido' });
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_ADMIN_SECRET);
+    req.admin = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+  }
+};
+
+// ==========================================
+// GET /auth/me - Validar Sessão
+// ==========================================
+app.get('/auth/me', requireAdmin, async (req: any, res: any) => {
+  try {
+    const admin = await prisma.admin.findUnique({ where: { id: req.admin.id } });
+    if (!admin) return res.status(401).json({ error: 'Admin não encontrado.' });
+    res.json({ id: admin.id, email: admin.email, name: admin.name });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro interno no servidor.' });
+  }
+});
+
+// ==========================================
 // GET /stats - Estatísticas para o Dashboard
 // ==========================================
+<<<<<<< HEAD
 app.get('/stats', authMiddleware, async (req, res) => {
+=======
+app.get('/stats', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const companies = await prisma.company.findMany();
 
@@ -166,7 +200,11 @@ app.get('/stats', authMiddleware, async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 app.get('/companies', authMiddleware, async (req, res) => {
+=======
+app.get('/companies', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const companies = await prisma.company.findMany({
       include: {
@@ -200,7 +238,11 @@ app.get('/companies', authMiddleware, async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 app.post('/companies', authMiddleware, async (req, res) => {
+=======
+app.post('/companies', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { name, document, modules, systemName, primaryColor, logoUrl } = req.body;
 
@@ -272,7 +314,11 @@ app.post('/companies', authMiddleware, async (req, res) => {
 // ==========================================
 // GET /companies/:id - Detalhes de uma empresa
 // ==========================================
+<<<<<<< HEAD
 app.get('/companies/:id', authMiddleware, async (req, res) => {
+=======
+app.get('/companies/:id', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -297,7 +343,11 @@ app.get('/companies/:id', authMiddleware, async (req, res) => {
 // ==========================================
 // GET /companies/:id/logs - Histórico de Auditoria
 // ==========================================
+<<<<<<< HEAD
 app.get('/companies/:id/logs', authMiddleware, async (req, res) => {
+=======
+app.get('/companies/:id/logs', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const logs = await prisma.auditLog.findMany({
       where: { companyId: req.params.id },
@@ -314,7 +364,11 @@ app.get('/companies/:id/logs', authMiddleware, async (req, res) => {
 // ==========================================
 // GET /companies/:id/telemetry - Histórico de Telemetria
 // ==========================================
+<<<<<<< HEAD
 app.get('/companies/:id/telemetry', authMiddleware, async (req, res) => {
+=======
+app.get('/companies/:id/telemetry', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const telemetry = await prisma.telemetry.findMany({
       where: { companyId: req.params.id },
@@ -331,7 +385,11 @@ app.get('/companies/:id/telemetry', authMiddleware, async (req, res) => {
 // ==========================================
 // PUT /companies/:id - Atualizar empresa
 // ==========================================
+<<<<<<< HEAD
 app.put('/companies/:id', authMiddleware, async (req, res) => {
+=======
+app.put('/companies/:id', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { name, document, status, systemName, primaryColor, logoUrl } = req.body;
 
@@ -378,7 +436,47 @@ app.put('/companies/:id', authMiddleware, async (req, res) => {
       });
     }
 
-    res.json({ message: 'Empresa atualizada com sucesso!', company });
+    // Verifica se a empresa teve alteração de nome ou documento para forçar re-geração de licença se possível
+    let lastTokenGenerated = undefined;
+    if (currentCompany.name !== name || currentCompany.document !== document) {
+      const lastLicense = await prisma.license.findFirst({
+        where: { companyId: req.params.id },
+        orderBy: { createdAt: 'desc' }
+      });
+      if (lastLicense) {
+        const expTime = new Date(lastLicense.expiresAt);
+        if (expTime > new Date()) { // Só re-emite se a licença não estiver expirada
+          const modulesArr = JSON.parse(lastLicense.modules);
+          const tokenPayload = {
+            companyId: company.id,
+            companyName: company.name,
+            serial: company.document,
+            modules: modulesArr,
+            exp: Math.floor(expTime.getTime() / 1000)
+          };
+          const token = jwt.sign(tokenPayload, JWT_SECRET);
+          const newLic = await prisma.license.create({
+            data: {
+              companyId: company.id,
+              token,
+              expiresAt: expTime,
+              modules: JSON.stringify(modulesArr)
+            }
+          });
+          lastTokenGenerated = token;
+          await prisma.auditLog.create({
+            data: {
+              companyId: req.params.id,
+              action: 'LICENSE_UPDATED',
+              details: `Nova licença gerada devido a alteração cadastral.`,
+              ip: req.ip || req.socket.remoteAddress || 'unknown'
+            }
+          });
+        }
+      }
+    }
+
+    res.json({ message: 'Empresa atualizada com sucesso!', company, newToken: lastTokenGenerated });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao atualizar empresa' });
@@ -388,7 +486,11 @@ app.put('/companies/:id', authMiddleware, async (req, res) => {
 // ==========================================
 // DELETE /companies/:id - Remover empresa
 // ==========================================
+<<<<<<< HEAD
 app.delete('/companies/:id', authMiddleware, async (req, res) => {
+=======
+app.delete('/companies/:id', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     // Remove TODAS as relações primeiro (ordem importa para FK constraints)
     await prisma.telemetry.deleteMany({ where: { companyId: req.params.id } });
@@ -406,7 +508,11 @@ app.delete('/companies/:id', authMiddleware, async (req, res) => {
 // ==========================================
 // POST /companies/:id/renew - Renovar Licença
 // ==========================================
+<<<<<<< HEAD
 app.post('/companies/:id/renew', authMiddleware, async (req, res) => {
+=======
+app.post('/companies/:id/renew', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -466,7 +572,11 @@ app.post('/companies/:id/renew', authMiddleware, async (req, res) => {
 // ==========================================
 // PUT /companies/:id/modules - Alterar Módulos
 // ==========================================
+<<<<<<< HEAD
 app.put('/companies/:id/modules', authMiddleware, async (req, res) => {
+=======
+app.put('/companies/:id/modules', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { modules } = req.body;
 
@@ -538,7 +648,11 @@ app.put('/companies/:id/modules', authMiddleware, async (req, res) => {
 // ==========================================
 // PUT /companies/:id/expiration - Alterar Data de Expiração
 // ==========================================
+<<<<<<< HEAD
 app.put('/companies/:id/expiration', authMiddleware, async (req, res) => {
+=======
+app.put('/companies/:id/expiration', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { expiresAt } = req.body;
 
@@ -739,13 +853,13 @@ app.post('/heartbeat', async (req, res) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // 1. A MÁGICA ACONTECE AQUI: O jwt.verify checa matematicamente se a licença é válida e não expirou
-    const decoded = jwt.verify(token, JWT_SECRET) as { companyId: string, modules: string[] };
+    // 1. Ignorar expiração inicialmente para ler de forma segura qual empresa está chamando
+    const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as { companyId: string, modules: string[], exp?: number };
 
-    // 2. Antes de liberar o sinal verde, verificamos no banco a situação ATUAL da empresa
+    // 2. Buscar a empresa e sua última licença ativa
     const company = await prisma.company.findUnique({
       where: { id: decoded.companyId },
-      select: { status: true }
+      select: { status: true, licenses: { orderBy: { createdAt: 'desc' }, take: 1 } }
     });
 
     if (!company) {
@@ -755,29 +869,46 @@ app.post('/heartbeat', async (req, res) => {
 
     // REGRA DE INADIMPLÊNCIA / BLOQUEIO GERAL:
     if (company.status === 'SUSPENDED') {
-      res.status(403).json({
-        action: 'FORCE_LOCK',
-        reason: 'INADIMPLENCIA'
-      });
+      res.status(403).json({ action: 'FORCE_LOCK', reason: 'INADIMPLENCIA' });
       return;
     }
 
     if (company.status === 'CANCELED') {
-      res.status(403).json({
-        error: 'Licença cancelada permanentemente.',
-        reason: 'CANCELED',
-        valid: false
-      });
+      res.status(403).json({ error: 'Licença cancelada permanentemente.', reason: 'CANCELED', valid: false });
       return;
     }
 
-    // 3. Se passou da verificação e não está suspensa, atualizamos o "Visto por último" no banco
+    // 3. Verificação de Tokens e Expiracões
+    const latestLicense = company.licenses[0];
+    let newToken = undefined;
+
+    if (latestLicense) {
+      // Se a licença no banco for diferente da que o cliente enviou (ex: renovação, mudança de nome/módulo)
+      if (latestLicense.token !== token) {
+        newToken = latestLicense.token;
+      }
+
+      // Verifica se a última licença do banco está expirada
+      if (new Date(latestLicense.expiresAt) < new Date()) {
+        res.status(403).json({ error: 'A licença da empresa está expirada.', valid: false });
+        return;
+      }
+    } else {
+      // Se não tiver licenças no banco, não deveria rolar, mas previne quebra
+      // Valida se a data do próprio token (caso não exista DB por algum motivo) expirou
+      if (decoded.exp && (decoded.exp * 1000) < Date.now()) {
+        res.status(403).json({ error: 'Licença expirada', valid: false });
+        return;
+      }
+    }
+
+    // 4. Se passou da verificação e não está suspensa, atualizamos o "Visto por último"
     await prisma.company.update({
       where: { id: decoded.companyId },
-      data: { lastSeenAt: new Date() } // Grava a data e hora exatas de agora
+      data: { lastSeenAt: new Date() }
     });
 
-    // 4. Salvar Telemetria (se enviada)
+    // 5. Salvar Telemetria
     if (cpuUsage !== undefined && ramUsage !== undefined && activeUsers !== undefined) {
       await prisma.telemetry.create({
         data: {
@@ -789,6 +920,7 @@ app.post('/heartbeat', async (req, res) => {
       });
     }
 
+<<<<<<< HEAD
     // 4.5 Buscar notificações pendentes (não lidas)
     const pendingNotifications = await prisma.notification.findMany({
       where: { companyId: decoded.companyId, read: false },
@@ -801,6 +933,14 @@ app.post('/heartbeat', async (req, res) => {
       valid: true,
       modules: decoded.modules,
       notifications: pendingNotifications
+=======
+    // 6. Devolvemos o sinal verde com auto-sync (se houver newToken, o cliente atualiza .env)
+    res.status(200).json({
+      message: 'Heartbeat recebido. Sistema Online e Licença Válida.',
+      valid: true,
+      modules: latestLicense ? JSON.parse(latestLicense.modules) : decoded.modules,
+      newToken: newToken
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
     });
 
   } catch (error: any) {
@@ -816,7 +956,11 @@ app.post('/heartbeat', async (req, res) => {
 // ==========================================
 // POST /companies/:id/force-sync - Forçar Atualização Imediata (Control Plane)
 // ==========================================
+<<<<<<< HEAD
 app.post('/companies/:id/force-sync', authMiddleware, async (req, res) => {
+=======
+app.post('/companies/:id/force-sync', requireAdmin, async (req, res) => {
+>>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { id } = req.params;
 
@@ -848,6 +992,84 @@ app.post('/companies/:id/force-sync', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Erro no force-sync:', error);
     res.status(500).json({ error: 'Erro ao despachar comando force-sync.' });
+  }
+});
+
+// ==========================================
+// ADMINS CRUD
+// ==========================================
+
+app.get('/admins', requireAdmin, async (req, res) => {
+  try {
+    const admins = await prisma.admin.findMany({
+      select: { id: true, email: true, name: true, createdAt: true },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(admins);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao listar administradores.' });
+  }
+});
+
+app.post('/admins', requireAdmin, async (req, res: any) => {
+  try {
+    const { email, password, name } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
+
+    const exists = await prisma.admin.findUnique({ where: { email } });
+    if (exists) return res.status(400).json({ error: 'Email já está em uso.' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const admin = await prisma.admin.create({
+      data: { email, password: hashedPassword, name }
+    });
+
+    res.status(201).json({ id: admin.id, email: admin.email, name: admin.name });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao criar administrador.' });
+  }
+});
+
+app.put('/admins/:id', requireAdmin, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { email, password, name } = req.body;
+
+    const admin = await prisma.admin.findUnique({ where: { id } });
+    if (!admin) return res.status(404).json({ error: 'Admin não encontrado.' });
+
+    if (email && email !== admin.email) {
+      const exists = await prisma.admin.findUnique({ where: { email } });
+      if (exists) return res.status(400).json({ error: 'Email já está em uso.' });
+    }
+
+    const dataToUpdate: any = { name, email };
+    if (password && password.trim() !== '') {
+      dataToUpdate.password = await bcrypt.hash(password, 10);
+    }
+
+    const updated = await prisma.admin.update({
+      where: { id },
+      data: dataToUpdate
+    });
+
+    res.json({ id: updated.id, email: updated.email, name: updated.name });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar administrador.' });
+  }
+});
+
+app.delete('/admins/:id', requireAdmin, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    if (req.admin.id === id) {
+      return res.status(400).json({ error: 'Você não pode excluir a si mesmo.' });
+    }
+
+    await prisma.admin.delete({ where: { id } });
+    res.json({ message: 'Administrador excluído com sucesso.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao excluir administrador.' });
   }
 });
 
