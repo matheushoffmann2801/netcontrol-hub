@@ -90,7 +90,6 @@ export const getCompanyTelemetry = async (id: string) => {
 };
 
 // ==========================================
-<<<<<<< HEAD
 // PLANOS
 // ==========================================
 export const getPlans = async () => {
@@ -118,7 +117,10 @@ export const deletePlan = async (id: string) => {
 // ==========================================
 export const sendNotification = async (companyId: string, data: { title: string, message: string, type?: string }) => {
   const response = await api.post(`/companies/${companyId}/notifications`, data);
-=======
+  return response.data;
+};
+
+// ==========================================
 // ADMINS CRUD
 // ==========================================
 
@@ -139,6 +141,5 @@ export const updateAdmin = async (id: string, data: any) => {
 
 export const deleteAdmin = async (id: string) => {
   const response = await api.delete(`/admins/${id}`);
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   return response.data;
 };

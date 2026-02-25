@@ -120,11 +120,7 @@ app.get('/auth/me', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // GET /stats - Estatísticas para o Dashboard
 // ==========================================
-<<<<<<< HEAD
-app.get('/stats', authMiddleware, async (req, res) => {
-=======
 app.get('/stats', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const companies = await prisma.company.findMany();
 
@@ -200,11 +196,7 @@ app.get('/stats', requireAdmin, async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
-app.get('/companies', authMiddleware, async (req, res) => {
-=======
 app.get('/companies', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const companies = await prisma.company.findMany({
       include: {
@@ -238,11 +230,7 @@ app.get('/companies', requireAdmin, async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
-app.post('/companies', authMiddleware, async (req, res) => {
-=======
 app.post('/companies', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { name, document, modules, systemName, primaryColor, logoUrl } = req.body;
 
@@ -314,11 +302,7 @@ app.post('/companies', requireAdmin, async (req, res) => {
 // ==========================================
 // GET /companies/:id - Detalhes de uma empresa
 // ==========================================
-<<<<<<< HEAD
-app.get('/companies/:id', authMiddleware, async (req, res) => {
-=======
 app.get('/companies/:id', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -343,11 +327,7 @@ app.get('/companies/:id', requireAdmin, async (req, res) => {
 // ==========================================
 // GET /companies/:id/logs - Histórico de Auditoria
 // ==========================================
-<<<<<<< HEAD
-app.get('/companies/:id/logs', authMiddleware, async (req, res) => {
-=======
 app.get('/companies/:id/logs', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const logs = await prisma.auditLog.findMany({
       where: { companyId: req.params.id },
@@ -364,11 +344,7 @@ app.get('/companies/:id/logs', requireAdmin, async (req, res) => {
 // ==========================================
 // GET /companies/:id/telemetry - Histórico de Telemetria
 // ==========================================
-<<<<<<< HEAD
-app.get('/companies/:id/telemetry', authMiddleware, async (req, res) => {
-=======
 app.get('/companies/:id/telemetry', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const telemetry = await prisma.telemetry.findMany({
       where: { companyId: req.params.id },
@@ -385,11 +361,7 @@ app.get('/companies/:id/telemetry', requireAdmin, async (req, res) => {
 // ==========================================
 // PUT /companies/:id - Atualizar empresa
 // ==========================================
-<<<<<<< HEAD
-app.put('/companies/:id', authMiddleware, async (req, res) => {
-=======
 app.put('/companies/:id', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { name, document, status, systemName, primaryColor, logoUrl } = req.body;
 
@@ -486,11 +458,7 @@ app.put('/companies/:id', requireAdmin, async (req, res) => {
 // ==========================================
 // DELETE /companies/:id - Remover empresa
 // ==========================================
-<<<<<<< HEAD
-app.delete('/companies/:id', authMiddleware, async (req, res) => {
-=======
 app.delete('/companies/:id', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     // Remove TODAS as relações primeiro (ordem importa para FK constraints)
     await prisma.telemetry.deleteMany({ where: { companyId: req.params.id } });
@@ -508,11 +476,7 @@ app.delete('/companies/:id', requireAdmin, async (req, res) => {
 // ==========================================
 // POST /companies/:id/renew - Renovar Licença
 // ==========================================
-<<<<<<< HEAD
-app.post('/companies/:id/renew', authMiddleware, async (req, res) => {
-=======
 app.post('/companies/:id/renew', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -572,11 +536,7 @@ app.post('/companies/:id/renew', requireAdmin, async (req, res) => {
 // ==========================================
 // PUT /companies/:id/modules - Alterar Módulos
 // ==========================================
-<<<<<<< HEAD
-app.put('/companies/:id/modules', authMiddleware, async (req, res) => {
-=======
 app.put('/companies/:id/modules', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { modules } = req.body;
 
@@ -648,11 +608,7 @@ app.put('/companies/:id/modules', requireAdmin, async (req, res) => {
 // ==========================================
 // PUT /companies/:id/expiration - Alterar Data de Expiração
 // ==========================================
-<<<<<<< HEAD
-app.put('/companies/:id/expiration', authMiddleware, async (req, res) => {
-=======
 app.put('/companies/:id/expiration', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { expiresAt } = req.body;
 
@@ -956,11 +912,7 @@ app.post('/heartbeat', async (req, res) => {
 // ==========================================
 // POST /companies/:id/force-sync - Forçar Atualização Imediata (Control Plane)
 // ==========================================
-<<<<<<< HEAD
-app.post('/companies/:id/force-sync', authMiddleware, async (req, res) => {
-=======
 app.post('/companies/:id/force-sync', requireAdmin, async (req, res) => {
->>>>>>> 040bfc5ec9da160283e5d6302990ca2e0ff0e350
   try {
     const { id } = req.params;
 
