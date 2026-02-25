@@ -81,3 +81,27 @@ export const getCompanyTelemetry = async (id: string) => {
   const response = await api.get(`/companies/${id}/telemetry`);
   return response.data;
 };
+
+// ==========================================
+// ADMINS CRUD
+// ==========================================
+
+export const getAdmins = async () => {
+  const response = await api.get('/admins');
+  return response.data;
+};
+
+export const createAdmin = async (data: any) => {
+  const response = await api.post('/admins', data);
+  return response.data;
+};
+
+export const updateAdmin = async (id: string, data: any) => {
+  const response = await api.put(`/admins/${id}`, data);
+  return response.data;
+};
+
+export const deleteAdmin = async (id: string) => {
+  const response = await api.delete(`/admins/${id}`);
+  return response.data;
+};

@@ -55,6 +55,7 @@ model Admin {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String // Vamos armazenar a senha com hash (bcrypt)
+  name      String?  // Nome de exibição
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

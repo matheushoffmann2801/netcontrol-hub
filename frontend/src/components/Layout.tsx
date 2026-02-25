@@ -3,8 +3,9 @@ import { Navigate, Outlet, useLocation, Link } from 'react-router-dom';
 import { useAuthStore, getFirstName } from '../store/useAuthStore';
 import {
     LayoutDashboard, Users, Settings, LogOut,
-    ChevronLeft, ChevronRight, Menu, X, Bell, UserCircle
+    ChevronLeft, ChevronRight, Menu, X, Bell, UserCircle, Loader2, Shield
 } from 'lucide-react';
+import { api } from '../services/api'; // NEW
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -15,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 const NAV_ITEMS = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/', badge: null },
     { icon: Users, label: 'Empresas', path: '/companies', badge: null },
+    { icon: Shield, label: 'Acessos', path: '/admins', badge: null },
     { icon: Settings, label: 'Configurações', path: '/settings', badge: null },
 ];
 
@@ -37,14 +39,16 @@ interface SidebarProps {
     initial: string;
     displayName: string;
     onLogout: () => void;
+    className?: string;
 }
 
-function Sidebar({ collapsed, onToggle, currentPath, initial, displayName, onLogout }: SidebarProps) {
+function Sidebar({ collapsed, onToggle, currentPath, initial, displayName, onLogout, className }: SidebarProps) {
     return (
         <TooltipProvider delayDuration={0}>
             <aside className={cn(
-                'hidden md:flex flex-col shrink-0 h-screen sticky top-0 transition-all duration-300 ease-in-out border-r border-border bg-background',
-                collapsed ? 'w-[68px]' : 'w-[228px]'
+                'flex flex-col shrink-0 h-screen sticky top-0 transition-all duration-300 ease-in-out border-r border-border bg-background',
+                collapsed ? 'w-[68px]' : 'w-[228px]',
+                className
             )}>
                 {/* Brand */}
                 <div className={cn('flex items-center h-16 px-3.5 shrink-0 border-b border-border gap-2.5', collapsed && 'justify-center')}>
@@ -206,12 +210,38 @@ function MobileHeader({ drawerOpen, onToggleDrawer, currentLabel, initial }: Mob
 
 /* ─── Layout Root ─── */
 export function Layout() {
-    const { token, admin, logout } = useAuthStore();
+    const { token, admin, logout, login } = useAuthStore();
     const location = useLocation();
     const [collapsed, setCollapsed] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
+    const [verifying, setVerifying] = useState(!!token);
+
+    // Valida o token contra o backend
+    import('react').then(({ useEffect }) => {
+        useEffect(() => {
+            if (!token) return;
+            api.get('/auth/me')
+                .then(res => {
+                    // Atualiza os dados do admin caso tenham mudado
+                    login(token, res.data);
+                    setVerifying(false);
+                })
+                .catch(() => {
+                    logout();
+                    setVerifying(false);
+                });
+        }, [token, logout, login]);
+    });
 
     if (!token) return <Navigate to="/login" state={{ from: location }} replace />;
+
+    if (verifying) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-background">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground/30" />
+            </div>
+        );
+    }
 
     const firstName = getFirstName(admin);
     const initial = firstName.charAt(0).toUpperCase();
@@ -221,6 +251,7 @@ export function Layout() {
         <div className="flex h-screen overflow-hidden bg-background">
             {/* Desktop Sidebar */}
             <Sidebar
+                className="hidden md:flex"
                 collapsed={collapsed}
                 onToggle={() => setCollapsed(c => !c)}
                 currentPath={location.pathname}

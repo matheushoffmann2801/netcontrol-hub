@@ -5,6 +5,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Companies } from './pages/Companies';
 import { Settings } from './pages/Settings';
 import { CompanyDetails } from './pages/CompanyDetails';
+import { Admins } from './pages/Admins';
 import { Toaster } from 'sonner';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/companies" element={<Companies />} />
           <Route path="/companies/:id" element={<CompanyDetails />} />
+          <Route path="/admins" element={<Admins />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
