@@ -661,7 +661,7 @@ app.post('/companies/:id/force-sync', async (req, res) => {
 });
 
 // SPA Fallback: qualquer rota não-API serve o frontend React
-app.get('*', (req, res) => {
+app.get('{*path}', (req, res) => {
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 
