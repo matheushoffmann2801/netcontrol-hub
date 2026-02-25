@@ -187,6 +187,11 @@ export function CompanyDetails() {
 
     const [editingModules, setEditingModules] = useState(false);
     const [selectedModules, setSelectedModules] = useState<string[]>([]);
+    const [activePlanTab, setActivePlanTab] = useState<'PRESET' | 'CUSTOM'>('PRESET');
+
+    const handleSelectAll = () => setSelectedModules(AVAILABLE_MODULES.map(m => m.id));
+    const handleClearAll = () => setSelectedModules([]);
+    const isAllSelected = selectedModules.length === AVAILABLE_MODULES.length;
 
     const PREDEFINED_PLANS = [
         {
@@ -483,84 +488,131 @@ export function CompanyDetails() {
                         </div>
                     </div>
 
-                    {/* Module Editor Modal */}
+                    {/* Module Editor Modal (Mobile-First Premium) */}
                     {editingModules && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
-                                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                        <div className="fixed inset-0 z-50 flex flex-col justify-end md:justify-center md:items-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">
+                            <div className="bg-white rounded-t-[32px] md:rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh] md:max-h-[85vh] animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-300">
+
+                                {/* Header */}
+                                <div className="px-6 md:px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 relative">
+                                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-slate-200 rounded-full md:hidden" />
                                     <div>
-                                        <h2 className="text-lg font-bold text-gray-900">Editar Módulos & Planos</h2>
-                                        <p className="text-xs text-gray-500 mt-0.5">Defina pacotes ou escolha módulos isolados para gerar a licença.</p>
+                                        <h2 className="text-xl font-black text-slate-900 mt-2 md:mt-0">Gestão de Acesso</h2>
+                                        <p className="text-xs font-medium text-slate-500 mt-1">Defina o plano ou escolha módulos específicos.</p>
                                     </div>
-                                    <button onClick={() => setEditingModules(false)} className="text-gray-400 hover:text-gray-600 bg-gray-50 hover:bg-gray-100 p-2 rounded-full transition-colors">
-                                        <XCircle className="w-5 h-5" />
+                                    <button onClick={() => setEditingModules(false)} className="text-slate-400 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 p-2.5 rounded-full transition-colors mt-2 md:mt-0">
+                                        <XCircle className="w-6 h-6" />
                                     </button>
                                 </div>
-                                <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar space-y-6">
 
-                                    {/* Presets de Planos */}
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Aplicar Plano Rápido</h3>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {PREDEFINED_PLANS.map((plan, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => setSelectedModules(plan.modules)}
-                                                    className="flex items-start text-left p-3 rounded-xl border border-blue-100 bg-blue-50/50 hover:bg-blue-100/50 transition-colors group"
-                                                >
-                                                    <div className="bg-blue-100 text-blue-600 rounded-lg p-2 mr-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                                        <Sparkles className="w-4 h-4" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-bold text-blue-900">{plan.name}</p>
-                                                        <p className="text-xs text-blue-700/70">{plan.description}</p>
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
+                                {/* Tabs Plana / Personalizado */}
+                                <div className="flex px-6 md:px-8 pt-2 space-x-6 shrink-0 border-b border-slate-100">
+                                    <button
+                                        onClick={() => setActivePlanTab('PRESET')}
+                                        className={`pb-3 text-sm font-bold border-b-2 transition-all tracking-wide ${activePlanTab === 'PRESET' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Planos Prontos
+                                    </button>
+                                    <button
+                                        onClick={() => setActivePlanTab('CUSTOM')}
+                                        className={`pb-3 text-sm font-bold border-b-2 transition-all tracking-wide ${activePlanTab === 'CUSTOM' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Módulos Individuais
+                                    </button>
+                                </div>
 
-                                    {/* Módulos Individuais */}
-                                    <div>
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex justify-between items-center">
-                                            <span>Módulos Individuais</span>
-                                            <button onClick={() => setSelectedModules([])} className="text-red-500 hover:text-red-700 text-[10px] bg-red-50 px-2 py-1 rounded">Limpar Todos</button>
-                                        </h3>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {AVAILABLE_MODULES.map(mod => {
-                                                const isChecked = selectedModules.includes(mod.id);
+                                {/* Corpo Rolável */}
+                                <div className="p-6 md:px-8 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50">
+
+                                    {activePlanTab === 'PRESET' && (
+                                        <div className="space-y-3 animate-in fade-in slide-in-from-left-4 duration-300">
+                                            {PREDEFINED_PLANS.map((plan, idx) => {
+                                                const isCurrentPlan = plan.modules.length === selectedModules.length && plan.modules.every(m => selectedModules.includes(m));
                                                 return (
                                                     <button
-                                                        key={mod.id}
-                                                        onClick={() => {
-                                                            if (isChecked) setSelectedModules(prev => prev.filter(m => m !== mod.id));
-                                                            else setSelectedModules(prev => [...prev, mod.id]);
-                                                        }}
-                                                        className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${isChecked ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-gray-200 bg-white'}`}
+                                                        key={idx}
+                                                        onClick={() => setSelectedModules(plan.modules)}
+                                                        className={`w-full flex items-center text-left p-4 rounded-2xl border-2 transition-all group relative overflow-hidden ${isCurrentPlan ? 'border-blue-500 bg-blue-50/80 shadow-sm' : 'border-slate-200/60 bg-white hover:border-slate-300 hover:bg-slate-50'}`}
                                                     >
-                                                        <span className={`text-xs font-bold ${isChecked ? 'text-blue-700' : 'text-gray-700'}`}>{mod.name}</span>
-                                                        <div className={`w-4 h-4 rounded-md flex items-center justify-center ${isChecked ? 'bg-blue-500 text-white' : 'border-2 border-gray-300'}`}>
-                                                            {isChecked && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                        {isCurrentPlan && <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 blur-2xl rounded-full -mt-10 -mr-10" />}
+
+                                                        <div className={`p-3 rounded-xl mr-4 shrink-0 transition-colors ${isCurrentPlan ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'}`}>
+                                                            {idx === 2 ? <Shield className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex justify-between items-center mb-0.5">
+                                                                <p className={`text-base font-black ${isCurrentPlan ? 'text-blue-900' : 'text-slate-800'}`}>{plan.name}</p>
+                                                                {isCurrentPlan && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
+                                                            </div>
+                                                            <p className={`text-xs font-medium ${isCurrentPlan ? 'text-blue-700/80' : 'text-slate-500'}`}>{plan.description}</p>
                                                         </div>
                                                     </button>
                                                 );
                                             })}
                                         </div>
-                                    </div>
+                                    )}
+
+                                    {activePlanTab === 'CUSTOM' && (
+                                        <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                                            {/* Master Toggle */}
+                                            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center cursor-pointer" onClick={() => isAllSelected ? handleClearAll() : handleSelectAll()}>
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-lg ${isAllSelected ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                        <Shield className="w-5 h-5" />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-slate-900 text-sm">Acesso Master (Geral)</h4>
+                                                        <p className="text-xs text-slate-500 font-medium">Habilitar absolutamente todos os módulos</p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isAllSelected ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                                                >
+                                                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isAllSelected ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+
+                                            {/* Modulos Matrix */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {AVAILABLE_MODULES.map(mod => {
+                                                    const isChecked = selectedModules.includes(mod.id);
+                                                    return (
+                                                        <button
+                                                            key={mod.id}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (isChecked) setSelectedModules(prev => prev.filter(m => m !== mod.id));
+                                                                else setSelectedModules(prev => [...prev, mod.id]);
+                                                            }}
+                                                            className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${isChecked ? 'border-blue-500 bg-blue-50/50' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
+                                                        >
+                                                            <span className={`text-sm font-bold ${isChecked ? 'text-blue-800' : 'text-slate-600'}`}>{mod.name}</span>
+                                                            <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${isChecked ? 'bg-blue-600 text-white shadow-sm' : 'border-2 border-slate-200 bg-slate-50'}`}>
+                                                                {isChecked && <Check className="w-3.5 h-3.5" strokeWidth={3.5} />}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
                                 </div>
-                                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+
+                                {/* Footer Actions */}
+                                <div className="px-6 md:px-8 py-5 border-t border-slate-100 bg-white flex gap-3 shrink-0 pb-safe">
                                     <button
                                         onClick={() => setEditingModules(false)}
-                                        className="flex-1 px-4 py-2.5 rounded-xl font-bold text-sm text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-all"
+                                        className="flex-1 py-3.5 rounded-xl font-bold text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all active:scale-[0.98]"
                                     >
                                         Cancelar
                                     </button>
                                     <button
                                         onClick={handleSaveModules}
-                                        disabled={isActionLoading}
-                                        className="flex-1 px-4 py-2.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all disabled:opacity-50 flex justify-center items-center"
+                                        disabled={isActionLoading || selectedModules.length === 0}
+                                        className="flex-[2] py-3.5 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/25 transition-all disabled:opacity-50 disabled:shadow-none active:scale-[0.98] flex justify-center items-center gap-2"
                                     >
-                                        {isActionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Salvar Módulos'}
+                                        {isActionLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Save className="w-4 h-4" /> Exportar Licença</>}
                                     </button>
                                 </div>
                             </div>
