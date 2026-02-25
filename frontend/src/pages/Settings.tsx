@@ -1,11 +1,64 @@
 import { useState } from 'react';
-import { useAuthStore } from '../store/useAuthStore';
-import { Shield, Key, Bell, Globe, Server, Save, Loader2 } from 'lucide-react';
-import { Toaster, toast } from 'sonner';
+import { useAuthStore, getFirstName } from '../store/useAuthStore';
+import {
+    Shield, Key, Bell, Globe, Server, Save, Loader2,
+    User, Mail, Camera, CheckCircle2, Lock, Eye, EyeOff
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
+
+/* ─── Toggle Switch ─── */
+function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={onChange}
+            role="switch"
+            aria-checked={checked}
+            className={cn(
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                checked ? 'bg-foreground' : 'bg-muted-foreground/30'
+            )}
+        >
+            <span className={cn('inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm', checked ? 'translate-x-6' : 'translate-x-1')} />
+        </button>
+    );
+}
+
+/* ─── Section Card ─── */
+function SectionCard({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
+    return (
+        <Card>
+            <CardHeader className="pb-3 border-b border-border bg-muted/20 rounded-t-2xl px-6 py-4">
+                <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                    <Icon className="w-4 h-4 text-muted-foreground" strokeWidth={1.8} />
+                    {title}
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">{children}</CardContent>
+        </Card>
+    );
+}
+
+import React from 'react';
 
 export function Settings() {
-    const { admin } = useAuthStore();
+    const { admin, setDisplayName, logout } = useAuthStore();
     const [saving, setSaving] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
+    const [showOldPass, setShowOldPass] = useState(false);
+
+    // Profile state
+    const [profileName, setProfileName] = useState(admin?.name ?? '');
+    const [profileEmail] = useState(admin?.email ?? '');
+
+    // Hub settings
     const [settings, setSettings] = useState({
         hubName: 'NetControl Hub',
         hubUrl: 'https://hub.netcontrol.com.br',
@@ -16,195 +69,197 @@ export function Settings() {
         offlineThreshold: '2',
     });
 
-    const handleChange = (field: string, value: string | boolean) => {
-        setSettings(prev => ({ ...prev, [field]: value }));
+    const initial = getFirstName(admin).charAt(0).toUpperCase();
+
+    const handleSaveProfile = async () => {
+        setSavingProfile(true);
+        await new Promise(r => setTimeout(r, 600));
+        setDisplayName(profileName);
+        toast.success('Perfil atualizado com sucesso!');
+        setSavingProfile(false);
     };
 
     const handleSave = async () => {
         setSaving(true);
-        // Simula salvar (por agora, apenas localStorage)
         await new Promise(r => setTimeout(r, 800));
         localStorage.setItem('hub_settings', JSON.stringify(settings));
-        toast.success('Configurações salvas com sucesso!');
+        toast.success('Configurações salvas!');
         setSaving(false);
     };
 
     return (
         <div className="space-y-6 max-w-3xl">
-            <Toaster richColors position="top-right" />
-
+            {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Configurações</h1>
-                <p className="text-gray-500 mt-1">Configure o comportamento global do NetControl Hub.</p>
+                <h1 className="text-3xl font-bold text-foreground tracking-tight">Configurações</h1>
+                <p className="text-muted-foreground text-sm mt-1">Gerencie seu perfil e as configurações do Hub.</p>
             </div>
 
-            {/* Admin Info */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-blue-500/20">
-                        {admin?.email.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-gray-900">Admin Master</h2>
-                        <p className="text-sm text-gray-500">{admin?.email}</p>
-                    </div>
-                </div>
-                <div className="flex items-center space-x-2 text-xs text-gray-400">
-                    <Shield className="w-3.5 h-3.5" />
-                    <span>Acesso total ao Control Plane</span>
-                </div>
-            </div>
-
-            {/* Hub Config */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                    <div className="flex items-center space-x-2">
-                        <Server className="w-4 h-4 text-gray-500" />
-                        <h3 className="font-bold text-gray-900">Configurações do Hub</h3>
-                    </div>
-                </div>
-                <div className="p-6 space-y-5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Nome do Hub</label>
-                            <input
-                                value={settings.hubName}
-                                onChange={e => handleChange('hubName', e.target.value)}
-                                className="w-full mt-1.5 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white transition-all"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">URL em Produção</label>
-                            <input
-                                value={settings.hubUrl}
-                                onChange={e => handleChange('hubUrl', e.target.value)}
-                                className="w-full mt-1.5 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white transition-all"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* License Config */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                    <div className="flex items-center space-x-2">
-                        <Key className="w-4 h-4 text-gray-500" />
-                        <h3 className="font-bold text-gray-900">Licenciamento</h3>
-                    </div>
-                </div>
-                <div className="p-6 space-y-5">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Validade padrão (dias)</label>
-                            <input
-                                type="number"
-                                value={settings.licenseValidity}
-                                onChange={e => handleChange('licenseValidity', e.target.value)}
-                                className="w-full mt-1.5 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white transition-all"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Intervalo Heartbeat (min)</label>
-                            <input
-                                type="number"
-                                value={settings.heartbeatInterval}
-                                onChange={e => handleChange('heartbeatInterval', e.target.value)}
-                                className="w-full mt-1.5 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white transition-all"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Threshold Offline (horas)</label>
-                            <input
-                                type="number"
-                                value={settings.offlineThreshold}
-                                onChange={e => handleChange('offlineThreshold', e.target.value)}
-                                className="w-full mt-1.5 px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white transition-all"
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Notification Config */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                    <div className="flex items-center space-x-2">
-                        <Bell className="w-4 h-4 text-gray-500" />
-                        <h3 className="font-bold text-gray-900">Notificações</h3>
-                    </div>
-                </div>
-                <div className="p-6 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-semibold text-gray-900 text-sm">Notificações por E-mail</p>
-                            <p className="text-xs text-gray-400 mt-0.5">Receber alertas quando uma empresa ficar offline por muito tempo.</p>
-                        </div>
-                        <button
-                            onClick={() => handleChange('emailNotifications', !settings.emailNotifications)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.emailNotifications ? 'bg-blue-600' : 'bg-gray-300'}`}
-                        >
-                            <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm ${settings.emailNotifications ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="font-semibold text-gray-900 text-sm">Renovação Automática</p>
-                            <p className="text-xs text-gray-400 mt-0.5">Renovar automaticamente licenças próximas ao vencimento.</p>
-                        </div>
-                        <button
-                            onClick={() => handleChange('autoRenew', !settings.autoRenew)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${settings.autoRenew ? 'bg-blue-600' : 'bg-gray-300'}`}
-                        >
-                            <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm ${settings.autoRenew ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* API Info */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-                    <div className="flex items-center space-x-2">
-                        <Globe className="w-4 h-4 text-gray-500" />
-                        <h3 className="font-bold text-gray-900">API & Endpoints</h3>
-                    </div>
-                </div>
-                <div className="p-6">
-                    <div className="space-y-3">
-                        {[
-                            { method: 'POST', path: '/auth/login', desc: 'Autenticação do Admin' },
-                            { method: 'GET', path: '/companies', desc: 'Listar todas as empresas' },
-                            { method: 'POST', path: '/companies', desc: 'Registrar nova empresa + licença' },
-                            { method: 'PUT', path: '/companies/:id', desc: 'Atualizar empresa' },
-                            { method: 'DELETE', path: '/companies/:id', desc: 'Remover empresa' },
-                            { method: 'POST', path: '/companies/:id/renew', desc: 'Renovar licença' },
-                            { method: 'POST', path: '/heartbeat', desc: 'Heartbeat do sistema local' },
-                        ].map((endpoint, i) => (
-                            <div key={i} className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${endpoint.method === 'GET' ? 'bg-emerald-100 text-emerald-700' :
-                                        endpoint.method === 'POST' ? 'bg-blue-100 text-blue-700' :
-                                            endpoint.method === 'PUT' ? 'bg-amber-100 text-amber-700' :
-                                                'bg-red-100 text-red-700'
-                                    }`}>{endpoint.method}</span>
-                                <code className="text-xs font-mono text-gray-600">{endpoint.path}</code>
-                                <span className="text-xs text-gray-400 ml-auto">{endpoint.desc}</span>
+            {/* ── PERFIL ── */}
+            <Card className="overflow-hidden">
+                <CardHeader className="pb-0 border-b border-border bg-muted/20 rounded-t-2xl px-6 py-4">
+                    <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                        <User className="w-4 h-4 text-muted-foreground" strokeWidth={1.8} />
+                        Meu Perfil
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                    {/* Avatar + name header */}
+                    <div className="flex items-center gap-5">
+                        <div className="relative group cursor-pointer">
+                            <Avatar className="w-18 h-18 border-2 border-border" style={{ width: 72, height: 72 }}>
+                                <AvatarFallback
+                                    className="text-2xl font-black text-background"
+                                    style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #374151 100%)' }}
+                                >
+                                    {initial}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Camera className="w-5 h-5 text-white" />
                             </div>
-                        ))}
+                        </div>
+                        <div>
+                            <p className="text-lg font-bold text-foreground">{getFirstName(admin)}</p>
+                            <p className="text-sm text-muted-foreground">{profileEmail}</p>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                                <Shield className="w-3 h-3 text-emerald-600" />
+                                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Admin Master · Acesso Total</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Editable fields */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                            <Label htmlFor="profile-name" className="flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5 text-muted-foreground" />
+                                Nome de Exibição
+                            </Label>
+                            <Input
+                                id="profile-name"
+                                placeholder="Seu nome"
+                                value={profileName}
+                                onChange={e => setProfileName(e.target.value)}
+                            />
+                            <p className="text-[11px] text-muted-foreground">Este é o nome mostrado na saudação do Dashboard.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="profile-email" className="flex items-center gap-1.5">
+                                <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                                E-mail
+                            </Label>
+                            <Input
+                                id="profile-email"
+                                value={profileEmail}
+                                disabled
+                                className="opacity-60 cursor-not-allowed"
+                            />
+                            <p className="text-[11px] text-muted-foreground">E-mail não pode ser alterado aqui.</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                        <Button variant="ghost" size="sm" onClick={logout} className="text-red-500 hover:text-red-600 hover:bg-red-50 gap-2">
+                            <Lock className="w-3.5 h-3.5" />
+                            Sair da conta
+                        </Button>
+                        <Button onClick={handleSaveProfile} disabled={savingProfile} size="sm" className="gap-2">
+                            {savingProfile
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : <CheckCircle2 className="w-3.5 h-3.5" />
+                            }
+                            {savingProfile ? 'Salvando...' : 'Salvar Perfil'}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* ── HUB CONFIG ── */}
+            <SectionCard icon={Server} title="Configurações do Hub">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                        <Label htmlFor="hub-name">Nome do Hub</Label>
+                        <Input id="hub-name" value={settings.hubName} onChange={e => setSettings(s => ({ ...s, hubName: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="hub-url">URL em Produção</Label>
+                        <Input id="hub-url" value={settings.hubUrl} onChange={e => setSettings(s => ({ ...s, hubUrl: e.target.value }))} />
                     </div>
                 </div>
-            </div>
+            </SectionCard>
 
-            {/* Save Button */}
+            {/* ── LICENCIAMENTO ── */}
+            <SectionCard icon={Key} title="Licenciamento">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                    <div className="space-y-2">
+                        <Label>Validade padrão (dias)</Label>
+                        <Input type="number" value={settings.licenseValidity} onChange={e => setSettings(s => ({ ...s, licenseValidity: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Heartbeat (min)</Label>
+                        <Input type="number" value={settings.heartbeatInterval} onChange={e => setSettings(s => ({ ...s, heartbeatInterval: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Threshold Offline (h)</Label>
+                        <Input type="number" value={settings.offlineThreshold} onChange={e => setSettings(s => ({ ...s, offlineThreshold: e.target.value }))} />
+                    </div>
+                </div>
+            </SectionCard>
+
+            {/* ── NOTIFICAÇÕES ── */}
+            <SectionCard icon={Bell} title="Notificações">
+                <div className="space-y-5">
+                    {[
+                        { key: 'emailNotifications', label: 'Notificações por E-mail', desc: 'Alertas quando uma empresa ficar offline.' },
+                        { key: 'autoRenew', label: 'Renovação Automática', desc: 'Renovar licenças próximas ao vencimento.' },
+                    ].map(({ key, label, desc }) => (
+                        <div key={key} className="flex items-center justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-foreground">{label}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                            </div>
+                            <Toggle
+                                checked={settings[key as keyof typeof settings] as boolean}
+                                onChange={() => setSettings(s => ({ ...s, [key]: !s[key as keyof typeof settings] }))}
+                            />
+                        </div>
+                    ))}
+                </div>
+            </SectionCard>
+
+            {/* ── API Endpoints ── */}
+            <SectionCard icon={Globe} title="API & Endpoints">
+                <div className="space-y-1.5">
+                    {[
+                        { method: 'POST', path: '/auth/login', desc: 'Autenticação do Admin' },
+                        { method: 'GET', path: '/companies', desc: 'Listar todas as empresas' },
+                        { method: 'POST', path: '/companies', desc: 'Registrar nova empresa + licença' },
+                        { method: 'PUT', path: '/companies/:id', desc: 'Atualizar empresa' },
+                        { method: 'DELETE', path: '/companies/:id', desc: 'Remover empresa' },
+                        { method: 'POST', path: '/companies/:id/renew', desc: 'Renovar licença' },
+                        { method: 'POST', path: '/heartbeat', desc: 'Heartbeat do sistema local' },
+                    ].map((ep, i) => {
+                        const color = { GET: 'bg-emerald-100 text-emerald-700', POST: 'bg-blue-100 text-blue-700', PUT: 'bg-amber-100 text-amber-700', DELETE: 'bg-red-100 text-red-700' }[ep.method] ?? 'bg-muted text-muted-foreground';
+                        return (
+                            <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/40 transition-colors">
+                                <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded font-mono shrink-0', color)}>{ep.method}</span>
+                                <code className="text-xs font-mono text-foreground flex-1">{ep.path}</code>
+                                <span className="text-xs text-muted-foreground hidden sm:block">{ep.desc}</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </SectionCard>
+
+            {/* Save */}
             <div className="flex justify-end pb-6">
-                <button
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/25 active:scale-95"
-                >
+                <Button onClick={handleSave} disabled={saving} className="gap-2 px-6">
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    <span>{saving ? 'Salvando...' : 'Salvar Configurações'}</span>
-                </button>
+                    {saving ? 'Salvando...' : 'Salvar Configurações'}
+                </Button>
             </div>
         </div>
     );

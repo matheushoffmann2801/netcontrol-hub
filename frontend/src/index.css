@@ -1,9 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* shadcn/ui tokens */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.75rem;
+
+    /* NetControl extended tokens */
+    --nc-sidebar-bg: 222.2 47.4% 11.2%;
+    --nc-sidebar-text: 210 40% 90%;
+    --nc-sidebar-active: 217.2 91.2% 59.8%;
+
+    /* Bottom nav height for mobile */
+    --bottom-nav-h: 64px;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-background text-foreground font-sans antialiased;
+    overscroll-behavior: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 99px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+}
+
+@layer utilities {
+
+  /* Safe area padding for mobile */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .mb-safe {
+    margin-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  /* Glass surface */
+  .glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Subtle skeleton loader */
+  .skeleton {
+    background: linear-gradient(90deg,
+        hsl(var(--muted)) 25%,
+        hsl(var(--border)) 50%,
+        hsl(var(--muted)) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+    border-radius: 6px;
+  }
+
+  /* Accent stripe variants */
+  .stripe-blue {
+    border-left: 3px solid hsl(217.2 91.2% 59.8%);
+  }
+
+  .stripe-emerald {
+    border-left: 3px solid hsl(142.1 76.2% 36.3%);
+  }
+
+  .stripe-violet {
+    border-left: 3px solid hsl(262.1 83.3% 57.8%);
+  }
+
+  .stripe-amber {
+    border-left: 3px solid hsl(37.7 92.1% 50.2%);
+  }
+
+  .stripe-rose {
+    border-left: 3px solid hsl(346.8 77.2% 49.8%);
   }
 }
