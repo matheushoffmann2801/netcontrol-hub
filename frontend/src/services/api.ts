@@ -4,9 +4,14 @@ import type { Company } from '../types';
 // O endereço base do seu backend
 const API_URL = 'http://localhost:3333';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_URL,
 });
+
+export const getStats = async () => {
+  const response = await api.get('/stats');
+  return response.data;
+};
 
 export const getCompanies = async (): Promise<Company[]> => {
   try {

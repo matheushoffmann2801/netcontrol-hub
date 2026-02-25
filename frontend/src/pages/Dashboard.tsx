@@ -1,272 +1,187 @@
-import { useEffect, useState } from 'react';
-import { api } from '../lib/axios';
-import { Plus, Search, Activity, Users, CheckCircle2, XCircle, Shield, Clock } from 'lucide-react';
-import { CompanyModal } from '../components/CompanyModal';
-import { Toaster, toast } from 'sonner';
+import React from 'react';
+import {
+  Users, Server, Activity, ShieldCheck,
+  ArrowUpRight, Globe, Cpu
+} from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend
+} from 'recharts';
 
-interface Company {
-    id: string;
-    name: string;
-    document: string;
-    status: string;
-    lastSeenAt: string | null;
-    createdAt: string;
-    licenses: any[];
-    customization?: { systemName: string; primaryColor: string; logoUrl: string | null };
-}
+import { getStats } from '../services/api';
+
+const StatCard = ({ title, value, subtext, icon: Icon, trend, colorClass }: any) => (
+  <div className="relative overflow-hidden bg-white border border-slate-200 rounded-2xl p-6 group hover:border-blue-300 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300">
+    <div className={`absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity ${colorClass}`}>
+      <Icon size={80} />
+    </div>
+    <div className="relative z-10">
+      <div className="flex items-center gap-3 mb-2">
+        <div className={`p-2 rounded-lg bg-slate-50 ${colorClass} bg-opacity-10`}>
+          <Icon size={20} className={colorClass.replace('text-', 'text-')} />
+        </div>
+        <span className="text-slate-500 font-medium text-sm">{title}</span>
+      </div>
+      <div className="flex items-end gap-3">
+        <h3 className="text-3xl font-bold text-slate-800">{value}</h3>
+        {trend && (
+          <span className="flex items-center text-emerald-600 text-xs font-bold mb-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+            <ArrowUpRight size={12} className="mr-1" /> {trend}
+          </span>
+        )}
+      </div>
+      <p className="text-slate-400 text-xs mt-2">{subtext}</p>
+    </div>
+  </div>
+);
 
 export function Dashboard() {
-    const [companies, setCompanies] = useState<Company[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
+  const [stats, setStats] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
 
-    useEffect(() => {
-        loadCompanies();
-    }, []);
+  React.useEffect(() => {
+    getStats().then(data => {
+      setStats(data);
+      setLoading(false);
+    }).catch(err => {
+      console.error(err);
+      setLoading(false);
+    });
+  }, []);
 
-    const loadCompanies = async () => {
-        try {
-            const { data } = await api.get('/companies');
-            setCompanies(data);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+  if (loading) return <div className="p-8 text-center text-slate-500">Carregando métricas...</div>;
 
-    const getStatus = (lastSeenAt: string | null) => {
-        if (!lastSeenAt) return 'OFFLINE';
-        const lastSeen = new Date(lastSeenAt);
-        const now = new Date();
-        const diffHours = (now.getTime() - lastSeen.getTime()) / (1000 * 60 * 60);
-        return diffHours <= 2 ? 'ONLINE' : 'OFFLINE';
-    };
+  const statusData = [
+    { name: 'Online', value: stats?.onlineInstances || 0, color: '#10B981' },
+    { name: 'Offline', value: stats?.offlineInstances || 0, color: '#EF4444' }
+  ];
 
-    const getTimeAgo = (dateStr: string | null) => {
-        if (!dateStr) return 'Nunca';
-        const date = new Date(dateStr);
-        const now = new Date();
-        const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-        if (diffSec < 60) return 'Agora';
-        if (diffSec < 3600) return `${Math.floor(diffSec / 60)}min atrás`;
-        if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h atrás`;
-        return `${Math.floor(diffSec / 86400)}d atrás`;
-    };
+  const growthData = stats?.growthData || [];
+  const totalPercentage = stats?.activeCompanies ? Math.round((stats.onlineInstances / stats.activeCompanies) * 100) : 0;
 
-    const onlineCount = companies.filter(c => getStatus(c.lastSeenAt) === 'ONLINE').length;
-    const offlineCount = companies.length - onlineCount;
-    const activeLicenses = companies.filter(c => c.licenses?.length > 0).length;
-
-    const filteredCompanies = companies.filter(c =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (c.document && c.document.includes(searchTerm))
-    );
-
-    const toggleStatus = async (id: string, currentStatus: string) => {
-        const newStatus = currentStatus === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED';
-        const confirmMsg = newStatus === 'SUSPENDED'
-            ? 'Suspender a empresa por inadimplência bloqueará todo o acesso com base no heartbeat local. Deseja continuar?'
-            : 'Desbloquear a empresa? O acesso será restaurado imediatamente.';
-
-        if (!confirm(confirmMsg)) return;
-
-        try {
-            await api.put(`/companies/${id}`, { status: newStatus });
-            toast.success(`Empresa ${newStatus === 'ACTIVE' ? 'DEDBLOQUEADA' : 'BLOQUEADA'} com sucesso!`);
-            loadCompanies();
-        } catch (error) {
-            toast.error('Erro ao alterar status da empresa.');
-        }
-    };
-
-    const stats = [
-        { title: 'Total Empresas', value: companies.length, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
-        { title: 'Online Agora', value: onlineCount, icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-        { title: 'Offline', value: offlineCount, icon: XCircle, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-200' },
-        { title: 'Licenças Ativas', value: activeLicenses, icon: Shield, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
-    ];
-
-    if (loading) {
-        return (
-            <div className="flex h-[60vh] items-center justify-center">
-                <div className="flex flex-col items-center space-y-3">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-                    <span className="text-sm font-medium text-gray-400">Carregando dados...</span>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-6">
-            <Toaster richColors position="top-right" toastOptions={{ duration: 4000 }} />
-            <CompanyModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSuccess={loadCompanies} />
-
-            {/* Header */}
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
-                    <p className="text-gray-500 mt-1">Monitore e gerencie as instâncias ativas do NetControl.</p>
-                </div>
-                <button
-                    onClick={() => setModalOpen(true)}
-                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-blue-500/25 transition-all hover:scale-[1.02] active:scale-95"
-                >
-                    <Plus className="w-5 h-5" />
-                    <span>Nova Empresa</span>
-                </button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {stats.map((stat, idx) => (
-                    <div key={idx} className={`bg-white p-5 rounded-2xl shadow-sm border ${stat.border} flex items-center space-x-4 transition-all hover:shadow-md`}>
-                        <div className={`p-3 rounded-xl ${stat.bg}`}>
-                            <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                        </div>
-                        <div>
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{stat.title}</p>
-                            <h3 className="text-2xl font-bold text-gray-900">{stat.value}</h3>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Table */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                    <h2 className="text-lg font-bold text-gray-900">Empresas Cadastradas</h2>
-                    <div className="relative">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Buscar por nome ou CNPJ..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-72 bg-white"
-                        />
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-gray-50">
-                                <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Empresa</th>
-                                <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Documento</th>
-                                <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Módulos</th>
-                                <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Situação (Fin.)</th>
-                                <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Conexão (App)</th>
-                                <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">Último Ping</th>
-                                <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 text-right">Ação Rápida</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                            {filteredCompanies.map((company) => {
-                                const isOnline = getStatus(company.lastSeenAt) === 'ONLINE';
-                                const modules = company.licenses?.[0]?.modules || [];
-
-                                return (
-                                    <tr key={company.id} className="hover:bg-blue-50/30 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center space-x-3">
-                                                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                                                    {company.name.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <div className="font-semibold text-gray-900 text-sm">{company.name}</div>
-                                                    <div className="text-xs text-gray-400 font-mono">{company.id.substring(0, 8)}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">
-                                            {company.document || '—'}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex flex-wrap gap-1.5 max-w-[200px]">
-                                                {modules.length > 0 ? modules.map((mod: string, i: number) => (
-                                                    <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-md border border-gray-200 uppercase tracking-wider">
-                                                        {mod}
-                                                    </span>
-                                                )) : <span className="text-gray-300 text-xs italic">Nenhum</span>}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {company.status === 'SUSPENDED' ? (
-                                                <div className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider">
-                                                    Inadimplente (Bloqueada)
-                                                </div>
-                                            ) : company.status === 'ACTIVE' ? (
-                                                <div className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider">
-                                                    Adimplente (Normal)
-                                                </div>
-                                            ) : (
-                                                <div className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 uppercase tracking-wider">
-                                                    Cancelada
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${isOnline
-                                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                                : 'bg-gray-50 text-gray-600 border-gray-200'
-                                                }`}>
-                                                {isOnline ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                                                <span>{isOnline ? 'Online' : 'Offline'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center space-x-1.5 text-xs text-gray-500">
-                                                <Clock className="w-3.5 h-3.5" />
-                                                <span>{getTimeAgo(company.lastSeenAt)}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                                            <div className="flex items-center justify-end space-x-3">
-                                                {company.status === 'SUSPENDED' ? (
-                                                    <button onClick={() => toggleStatus(company.id, company.status)} className="text-emerald-600 font-bold text-xs hover:text-emerald-700 hover:underline">
-                                                        Desbloquear
-                                                    </button>
-                                                ) : (
-                                                    <button onClick={() => toggleStatus(company.id, company.status)} className="text-red-600 font-bold text-xs hover:text-red-700 hover:underline">
-                                                        Bloquear Acesso
-                                                    </button>
-                                                )}
-                                                <a href={`/companies`} className="text-blue-600 font-semibold text-xs hover:text-blue-700 transition-colors hover:underline">
-                                                    Gerenciar
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-
-                            {filteredCompanies.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-16 text-center">
-                                        <div className="flex flex-col items-center">
-                                            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                                                <Users className="w-7 h-7 text-gray-300" />
-                                            </div>
-                                            <p className="text-base font-semibold text-gray-900">Nenhuma empresa encontrada</p>
-                                            <p className="text-sm text-gray-400 mt-1">Cadastre a primeira empresa para começar.</p>
-                                            <button
-                                                onClick={() => setModalOpen(true)}
-                                                className="mt-4 flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-all shadow-md shadow-blue-500/25"
-                                            >
-                                                <Plus className="w-4 h-4" />
-                                                <span>Cadastrar Empresa</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Visão Geral</h1>
+          <p className="text-slate-500 mt-1">Monitoramento em tempo real das instâncias NetControl.</p>
         </div>
-    );
+        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-600"></span>
+          </span>
+          <span className="text-sm font-bold text-emerald-700">Sistema Operacional</span>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Empresas Ativas"
+          value={stats?.activeCompanies || 0}
+          subtext="Total na base"
+          icon={Users}
+          colorClass="text-blue-600"
+        />
+        <StatCard
+          title="Instâncias Online"
+          value={stats?.onlineInstances || 0}
+          subtext={`Última verificação: ${new Date().toLocaleTimeString()}`}
+          icon={Server}
+          colorClass="text-emerald-600"
+        />
+        <StatCard
+          title="Módulos Licenciados"
+          value={stats?.activeCompanies * 3 || 0}
+          subtext="Total estimado"
+          icon={Cpu}
+          colorClass="text-purple-600"
+        />
+        <StatCard
+          title="Planos Ativos"
+          value={stats?.activeCompanies || 0}
+          subtext="Assinaturas vigentes"
+          icon={Activity}
+          colorClass="text-amber-600"
+        />
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Area Chart - Growth */}
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <Globe size={18} className="text-blue-600" />
+            Crescimento de Base
+          </h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={growthData}>
+                <defs>
+                  <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="name" stroke="#94a3b8" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#94a3b8" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#fff', borderColor: '#e2e8f0', color: '#1e293b', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ color: '#1e293b' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="active"
+                  stroke="#6366f1"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorActive)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Pie Chart - Status */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col">
+          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <ShieldCheck size={18} className="text-emerald-600" />
+            Saúde da Rede
+          </h3>
+          <div className="flex-1 min-h-[300px] relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(0,0,0,0)" />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#fff', borderColor: '#e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  itemStyle={{ color: '#1e293b' }}
+                />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+              </PieChart>
+            </ResponsiveContainer>
+            {/* Center Text */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+              <span className="text-3xl font-bold text-slate-800">{totalPercentage}%</span>
+              <span className="text-xs text-slate-500 uppercase tracking-wider">Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

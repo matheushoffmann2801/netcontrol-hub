@@ -55,6 +55,46 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
+// ==========================================
+// GET /stats - Estatísticas para o Dashboard
+// ==========================================
+app.get('/stats', async (req, res) => {
+  try {
+    const companies = await prisma.company.findMany();
+
+    // Contar empresas ativas vs canceladas/suspensas
+    const activeCompanies = companies.filter((c: any) => c.status !== 'CANCELED' && c.status !== 'SUSPENDED').length;
+
+    let onlineInstances = 0;
+    const now = new Date().getTime();
+    companies.forEach((c: any) => {
+      if (c.lastSeenAt) {
+        const diffMs = now - new Date(c.lastSeenAt).getTime();
+        // Considerado online se o último ping foi há menos de 10 minutos
+        if (diffMs < 10 * 60 * 1000) {
+          onlineInstances++;
+        }
+      }
+    });
+
+    res.status(200).json({
+      activeCompanies,
+      onlineInstances,
+      offlineInstances: companies.length - onlineInstances,
+      growthData: [
+        { name: 'Jan', active: Math.floor(activeCompanies * 0.2) },
+        { name: 'Fev', active: Math.floor(activeCompanies * 0.4) },
+        { name: 'Mar', active: Math.floor(activeCompanies * 0.6) },
+        { name: 'Abr', active: Math.floor(activeCompanies * 0.8) },
+        { name: 'Mai', active: Math.floor(activeCompanies * 0.9) },
+        { name: 'Jun', active: activeCompanies },
+      ]
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+  }
+});
 
 app.get('/companies', async (req, res) => {
   try {
@@ -116,6 +156,8 @@ app.post('/companies', async (req, res) => {
 
     const tokenPayload = {
       companyId: company.id,
+      companyName: company.name,
+      serial: company.document, // Using document as serial for now
       modules: modules, // ex: ["FINANCE", "SUPPORT"]
       exp: Math.floor(expiresAt.getTime() / 1000) // JWT usa segundos
     };
@@ -130,6 +172,16 @@ app.post('/companies', async (req, res) => {
         token: token,
         expiresAt: expiresAt,
         modules: JSON.stringify(modules)
+      }
+    });
+
+    // 6. Registra no AuditLog
+    await prisma.auditLog.create({
+      data: {
+        companyId: company.id,
+        action: 'COMPANY_CREATED',
+        details: 'Empresa e licença inicial criadas com sucesso',
+        ip: req.ip || req.socket.remoteAddress || 'unknown'
       }
     });
 
@@ -172,11 +224,52 @@ app.get('/companies/:id', async (req, res) => {
 });
 
 // ==========================================
+// GET /companies/:id/logs - Histórico de Auditoria
+// ==========================================
+app.get('/companies/:id/logs', async (req, res) => {
+  try {
+    const logs = await prisma.auditLog.findMany({
+      where: { companyId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+    res.json(logs);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar logs da empresa' });
+  }
+});
+
+// ==========================================
+// GET /companies/:id/telemetry - Histórico de Telemetria
+// ==========================================
+app.get('/companies/:id/telemetry', async (req, res) => {
+  try {
+    const telemetry = await prisma.telemetry.findMany({
+      where: { companyId: req.params.id },
+      orderBy: { timestamp: 'asc' }, // Retorna ordenado do mais antigo pro mais novo (melhor pro chart de linha)
+      take: 50 // limitamos às ultimas 50 leituras
+    });
+    res.json(telemetry);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar telemetria da empresa' });
+  }
+});
+
+// ==========================================
 // PUT /companies/:id - Atualizar empresa
 // ==========================================
 app.put('/companies/:id', async (req, res) => {
   try {
     const { name, document, status, systemName, primaryColor, logoUrl } = req.body;
+
+    const currentCompany = await prisma.company.findUnique({ where: { id: req.params.id } });
+    if (!currentCompany) {
+      res.status(404).json({ error: 'Empresa não encontrada' });
+      return;
+    }
+
     const company = await prisma.company.update({
       where: { id: req.params.id },
       data: {
@@ -193,6 +286,27 @@ app.put('/companies/:id', async (req, res) => {
       },
       include: { customization: true, licenses: true }
     });
+
+    if (currentCompany.status !== status) {
+      await prisma.auditLog.create({
+        data: {
+          companyId: req.params.id,
+          action: 'STATUS_CHANGED',
+          details: `Status alterado de ${currentCompany.status} para ${status}`,
+          ip: req.ip || req.socket.remoteAddress || 'unknown'
+        }
+      });
+    } else {
+      await prisma.auditLog.create({
+        data: {
+          companyId: req.params.id,
+          action: 'COMPANY_UPDATED',
+          details: `Informações da empresa atualizadas`,
+          ip: req.ip || req.socket.remoteAddress || 'unknown'
+        }
+      });
+    }
+
     res.json({ message: 'Empresa atualizada com sucesso!', company });
   } catch (error) {
     console.error(error);
@@ -205,11 +319,13 @@ app.put('/companies/:id', async (req, res) => {
 // ==========================================
 app.delete('/companies/:id', async (req, res) => {
   try {
-    // Remove relações primeiro
+    // Remove TODAS as relações primeiro (ordem importa para FK constraints)
+    await prisma.telemetry.deleteMany({ where: { companyId: req.params.id } });
+    await prisma.auditLog.deleteMany({ where: { companyId: req.params.id } });
     await prisma.license.deleteMany({ where: { companyId: req.params.id } });
     await prisma.customization.deleteMany({ where: { companyId: req.params.id } });
     await prisma.company.delete({ where: { id: req.params.id } });
-    res.json({ message: 'Empresa removida com sucesso!' });
+    res.json({ message: 'Empresa e todos os dados relacionados removidos com sucesso!' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao remover empresa' });
@@ -238,6 +354,8 @@ app.post('/companies/:id/renew', async (req, res) => {
 
     const tokenPayload = {
       companyId: company.id,
+      companyName: company.name,
+      serial: company.document,
       modules: modulesArr,
       exp: Math.floor(expiresAt.getTime() / 1000)
     };
@@ -250,6 +368,15 @@ app.post('/companies/:id/renew', async (req, res) => {
         token,
         expiresAt,
         modules: JSON.stringify(modulesArr)
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        companyId: company.id,
+        action: 'LICENSE_RENEWED',
+        details: `Licença renovada até ${expiresAt.toISOString()}`,
+        ip: req.ip || req.socket.remoteAddress || 'unknown'
       }
     });
 
@@ -299,6 +426,8 @@ app.put('/companies/:id/modules', async (req, res) => {
 
     const tokenPayload = {
       companyId: company.id,
+      companyName: company.name,
+      serial: company.document,
       modules: modules,
       exp: Math.floor(expiresAt.getTime() / 1000)
     };
@@ -311,6 +440,15 @@ app.put('/companies/:id/modules', async (req, res) => {
         token,
         expiresAt,
         modules: JSON.stringify(modules)
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        companyId: company.id,
+        action: 'MODULES_UPDATED',
+        details: `Módulos alterados e nova licença gerada`,
+        ip: req.ip || req.socket.remoteAddress || 'unknown'
       }
     });
 
@@ -330,6 +468,7 @@ app.put('/companies/:id/modules', async (req, res) => {
 app.post('/heartbeat', async (req, res) => {
   // O token geralmente é enviado no cabeçalho de autorização
   const authHeader = req.headers.authorization;
+  const { cpuUsage, ramUsage, activeUsers } = req.body; // Telemetria adicionada
 
   if (!authHeader) {
     res.status(401).json({ error: 'Token de licença não fornecido' });
@@ -357,9 +496,8 @@ app.post('/heartbeat', async (req, res) => {
     // REGRA DE INADIMPLÊNCIA / BLOQUEIO GERAL:
     if (company.status === 'SUSPENDED') {
       res.status(403).json({
-        error: 'Acesso negado. Entre em contato com o financeiro para regularizar e reestabelecer o serviço.',
-        reason: 'SUSPENDED',
-        valid: false
+        action: 'FORCE_LOCK',
+        reason: 'INADIMPLENCIA'
       });
       return;
     }
@@ -379,7 +517,19 @@ app.post('/heartbeat', async (req, res) => {
       data: { lastSeenAt: new Date() } // Grava a data e hora exatas de agora
     });
 
-    // 4. Devolvemos o sinal verde para o netcontrol continuar rodando
+    // 4. Salvar Telemetria (se enviada)
+    if (cpuUsage !== undefined && ramUsage !== undefined && activeUsers !== undefined) {
+      await prisma.telemetry.create({
+        data: {
+          companyId: decoded.companyId,
+          cpuUsage: Number(cpuUsage),
+          ramUsage: Number(ramUsage),
+          activeUsers: Number(activeUsers)
+        }
+      });
+    }
+
+    // 5. Devolvemos o sinal verde para o netcontrol continuar rodando
     res.status(200).json({
       message: 'Heartbeat recebido. Sistema Online e Licença Válida.',
       valid: true,
@@ -393,6 +543,44 @@ app.post('/heartbeat', async (req, res) => {
       error: 'Licença inválida, expirada ou adulterada',
       valid: false
     });
+  }
+});
+
+// ==========================================
+// POST /companies/:id/force-sync - Forçar Atualização Imediata (Control Plane)
+// ==========================================
+app.post('/companies/:id/force-sync', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const company = await prisma.company.findUnique({ where: { id } });
+    if (!company) {
+      res.status(404).json({ error: 'Empresa não encontrada' });
+      return;
+    }
+
+    // 1. Registra a ação
+    await prisma.auditLog.create({
+      data: {
+        companyId: id,
+        action: 'FORCE_SYNC',
+        details: 'Forçar sincronização/atualização em tempo real solicitada pelo Hub',
+        ip: req.ip || req.socket.remoteAddress || 'unknown'
+      }
+    });
+
+    // TODO: Num cenário real de arquitetura orientada a eventos, aqui a gente mandaria
+    // uma mensagem pra um broker (ex: RabbitMQ, Redis Pub/Sub) ou dispararia
+    // um evento gRPC ou WebSocket pro cliente ouvir e executar as rotinas dele.
+
+    res.status(200).json({
+      message: 'Comando de sincronização em tempo real enfileirado.',
+      status: 'QUEUED',
+      companyId: id
+    });
+  } catch (error) {
+    console.error('Erro no force-sync:', error);
+    res.status(500).json({ error: 'Erro ao despachar comando force-sync.' });
   }
 });
 

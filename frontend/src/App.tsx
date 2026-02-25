@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Companies } from './pages/Companies';
 import { Settings } from './pages/Settings';
+import { CompanyDetails } from './pages/CompanyDetails';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/companies" element={<Companies />} />
+          <Route path="/companies/:id" element={<CompanyDetails />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
