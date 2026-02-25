@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate, Outlet, useLocation, Link } from 'react-router-dom';
 import { useAuthStore, getFirstName } from '../store/useAuthStore';
 import {
@@ -217,21 +217,19 @@ export function Layout() {
     const [verifying, setVerifying] = useState(!!token);
 
     // Valida o token contra o backend
-    import('react').then(({ useEffect }) => {
-        useEffect(() => {
-            if (!token) return;
-            api.get('/auth/me')
-                .then(res => {
-                    // Atualiza os dados do admin caso tenham mudado
-                    login(token, res.data);
-                    setVerifying(false);
-                })
-                .catch(() => {
-                    logout();
-                    setVerifying(false);
-                });
-        }, [token, logout, login]);
-    });
+    useEffect(() => {
+        if (!token) return;
+        api.get('/auth/me')
+            .then(res => {
+                // Atualiza os dados do admin caso tenham mudado
+                login(token, res.data);
+                setVerifying(false);
+            })
+            .catch(() => {
+                logout();
+                setVerifying(false);
+            });
+    }, [token, logout, login]);
 
     if (!token) return <Navigate to="/login" state={{ from: location }} replace />;
 
