@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Copy, CheckCircle2, Building2, ExternalLink } from 'lucide-react';
 import { CompanyModal } from '../components/CompanyModal';
-import { getCompanies } from '../services/api';
+import { getCompanies, createCompany } from '../services/api';
+import { toast } from 'sonner';
 
 export function Companies() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -179,10 +180,15 @@ export function Companies() {
       <CompanyModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSubmit={(data) => {
-          console.log('Criar licença:', data);
-          loadCompanies(); // Atualiza a lista após criar nova empresa
-          setIsModalOpen(false);
+        onSubmit={async (data) => {
+          try {
+            const result = await createCompany(data);
+            toast.success(result.message || 'Empresa criada com sucesso!');
+            loadCompanies();
+            setIsModalOpen(false);
+          } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Erro ao criar empresa.');
+          }
         }}
       />
     </div>

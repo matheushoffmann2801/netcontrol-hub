@@ -4,12 +4,17 @@ import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
+import path from 'path';
 
 const prisma = new PrismaClient();
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Servir frontend estático em produção (Coolify)
+const publicPath = path.join(__dirname, '..', 'public');
+app.use(express.static(publicPath));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
 const JWT_ADMIN_SECRET = process.env.JWT_ADMIN_SECRET || 'super-secret-admin-key';
@@ -464,6 +469,77 @@ app.put('/companies/:id/modules', async (req, res) => {
   }
 });
 
+// ==========================================
+// PUT /companies/:id/expiration - Alterar Data de Expiração
+// ==========================================
+app.put('/companies/:id/expiration', async (req, res) => {
+  try {
+    const { expiresAt } = req.body;
+
+    if (!expiresAt) {
+      res.status(400).json({ error: 'Data de expiração não fornecida.' });
+      return;
+    }
+
+    const newExpiresAt = new Date(expiresAt);
+    if (isNaN(newExpiresAt.getTime())) {
+      res.status(400).json({ error: 'Data de expiração inválida.' });
+      return;
+    }
+
+    const company = await prisma.company.findUnique({
+      where: { id: req.params.id },
+      include: { licenses: true }
+    });
+
+    if (!company) {
+      res.status(404).json({ error: 'Empresa não encontrada' });
+      return;
+    }
+
+    const lastLicense = company.licenses[company.licenses.length - 1];
+    const modulesArr = lastLicense ? JSON.parse(lastLicense.modules) : [];
+
+    const tokenPayload = {
+      companyId: company.id,
+      companyName: company.name,
+      serial: company.document,
+      modules: modulesArr,
+      exp: Math.floor(newExpiresAt.getTime() / 1000)
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET);
+
+    const license = await prisma.license.create({
+      data: {
+        companyId: company.id,
+        token,
+        expiresAt: newExpiresAt,
+        modules: JSON.stringify(modulesArr)
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        companyId: company.id,
+        action: 'EXPIRATION_CHANGED',
+        details: `Data de expiração alterada para ${newExpiresAt.toISOString()}`,
+        ip: req.ip || req.socket.remoteAddress || 'unknown'
+      }
+    });
+
+    res.json({
+      message: `Expiração alterada para ${newExpiresAt.toLocaleDateString()}!`,
+      token,
+      expiresAt: newExpiresAt,
+      license
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao alterar data de expiração' });
+  }
+});
+
 // Rota de Heartbeat e Validação de Licença
 app.post('/heartbeat', async (req, res) => {
   // O token geralmente é enviado no cabeçalho de autorização
@@ -584,7 +660,12 @@ app.post('/companies/:id/force-sync', async (req, res) => {
   }
 });
 
-const PORT = 3333;
+// SPA Fallback: qualquer rota não-API serve o frontend React
+app.get('*', (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
+});
+
+const PORT = process.env.PORT || 3333;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor de Licenças rodando na porta ${PORT}`);
+  console.log(`🚀 NetControl Hub rodando na porta ${PORT}`);
 });

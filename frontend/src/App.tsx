@@ -5,10 +5,12 @@ import { Dashboard } from './pages/Dashboard';
 import { Companies } from './pages/Companies';
 import { Settings } from './pages/Settings';
 import { CompanyDetails } from './pages/CompanyDetails';
+import { Toaster } from 'sonner';
 
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster richColors position="top-right" />
       <Routes>
         <Route path="/login" element={<Login />} />
 

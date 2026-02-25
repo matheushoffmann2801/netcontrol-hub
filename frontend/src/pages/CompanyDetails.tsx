@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../lib/axios';
+import { api } from '../services/api';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import {
     ArrowLeft, CheckCircle2, XCircle, Shield,
@@ -261,8 +261,27 @@ export function CompanyDetails() {
                                 <div className="grid grid-cols-2 gap-6 relative z-10">
                                     <div>
                                         <p className="text-xs font-bold text-gray-400 pl-1 mb-1">DATA DE EXPIRAÇÃO</p>
-                                        <div className="text-xl font-bold text-gray-800 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
-                                            {new Date(currentLicense.expiresAt).toLocaleDateString()}
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="date"
+                                                defaultValue={currentLicense.expiresAt ? new Date(currentLicense.expiresAt).toISOString().split('T')[0] : ''}
+                                                onChange={async (e) => {
+                                                    if (!e.target.value) return;
+                                                    setIsActionLoading(true);
+                                                    try {
+                                                        const result = await api.put(`/companies/${id}/expiration`, {
+                                                            expiresAt: new Date(e.target.value).toISOString()
+                                                        });
+                                                        toast.success(result.data.message || 'Data de expiração alterada!');
+                                                        loadCompanyData();
+                                                    } catch (error: any) {
+                                                        toast.error(error.response?.data?.error || 'Erro ao alterar expiração.');
+                                                    } finally {
+                                                        setIsActionLoading(false);
+                                                    }
+                                                }}
+                                                className="text-lg font-bold text-gray-800 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none cursor-pointer"
+                                            />
                                         </div>
                                     </div>
                                     <div>
