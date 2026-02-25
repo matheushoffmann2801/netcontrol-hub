@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Users, Server, Activity, ShieldCheck,
+  Server, Activity, ShieldCheck,
   ArrowUpRight, ArrowDownRight, Globe, Cpu, TrendingUp,
   Wifi, Clock, Building2
 } from 'lucide-react';

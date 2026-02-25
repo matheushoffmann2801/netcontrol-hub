@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuthStore, getFirstName } from '../store/useAuthStore';
 import {
     Shield, Key, Bell, Globe, Server, Save, Loader2,
-    User, Mail, Camera, CheckCircle2, Lock, Eye, EyeOff
+    User, Mail, Camera, CheckCircle2, Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,7 +52,6 @@ export function Settings() {
     const { admin, setDisplayName, logout } = useAuthStore();
     const [saving, setSaving] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
-    const [showOldPass, setShowOldPass] = useState(false);
 
     // Profile state
     const [profileName, setProfileName] = useState(admin?.name ?? '');

@@ -189,8 +189,9 @@ export function Companies() {
       {/* Modal */}
       {showModal && (
         <CompanyModal
+          isOpen={showModal}
           onClose={() => setShowModal(false)}
-          onSave={async (data) => {
+          onSubmit={async (data: any) => {
             try {
               await createCompany(data);
               toast.success('Empresa criada com sucesso!');
