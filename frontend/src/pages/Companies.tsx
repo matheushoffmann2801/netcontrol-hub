@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Copy, CheckCircle2, Building2, ExternalLink } from 'lucide-react';
+import { Plus, Search, Copy, CheckCircle2, ExternalLink } from 'lucide-react';
 import { CompanyModal } from '../components/CompanyModal';
 import { getCompanies, createCompany } from '../services/api';
 import { toast } from 'sonner';
