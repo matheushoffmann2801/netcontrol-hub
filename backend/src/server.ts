@@ -810,7 +810,7 @@ app.post('/api/companies/:id/notifications', authMiddleware, async (req: any, re
   }
 });
 
-app.post('/api/notifications/mark-read', async (req: any, res: any) => {
+app.post('/notifications/mark-read', async (req: any, res: any) => {
   // Esse endpoint é consumido pelo Cliente NetControl usando a sua licença (token JWT)
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'Token não fornecido' });
@@ -839,7 +839,7 @@ app.post('/api/notifications/mark-read', async (req: any, res: any) => {
 
 // Rota de Heartbeat e Validação de Licença
 // Não requer autenticação de admin web, pois é consumida pelo NetControl Client
-app.post('/api/heartbeat', async (req: any, res: any) => {
+app.post('/heartbeat', async (req: any, res: any) => {
   // O token geralmente é enviado no cabeçalho de autorização
   const authHeader = req.headers.authorization;
   const { cpuUsage, ramUsage, activeUsers } = req.body; // Telemetria adicionada
