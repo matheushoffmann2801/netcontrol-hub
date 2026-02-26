@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/useAuthStore';
 
 // Em produção (Coolify), usa a mesma origem (reverse proxy nginx)
 // Em dev, usa localhost:3333
-const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : '');
+const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3333' : '')) + '/api';
 
 export const api = axios.create({
   baseURL: API_URL,

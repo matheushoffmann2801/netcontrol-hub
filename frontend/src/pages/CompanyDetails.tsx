@@ -8,6 +8,8 @@ import {
     Copy, Edit, Check, Sparkles, Save
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
 
 interface Company {
     id: string;
@@ -17,6 +19,7 @@ interface Company {
     lastSeenAt: string | null;
     createdAt: string;
     licenses: any[];
+    isOnline: boolean;
     customization?: { systemName: string; primaryColor: string; logoUrl: string | null };
 }
 
@@ -232,12 +235,7 @@ export function CompanyDetails() {
         }
     };
 
-    const isOnline = useMemo(() => {
-        if (!company?.lastSeenAt) return false;
-        const lastSeen = new Date(company.lastSeenAt);
-        const diffHours = (new Date().getTime() - lastSeen.getTime()) / (1000 * 60 * 60);
-        return diffHours <= 2;
-    }, [company]);
+    const isOnline = company?.isOnline || false;
 
     const chartData = useMemo(() => {
         return telemetry.map(t => ({
@@ -257,6 +255,22 @@ export function CompanyDetails() {
     }
 
     const currentLicense = company.licenses?.[company.licenses.length - 1];
+
+
+    const getPingInfo = (lastSeenAt: string | null) => {
+        if (!lastSeenAt) return 'Nunca';
+        const lastSeen = new Date(lastSeenAt);
+        const now = new Date();
+        const diffMs = Math.max(0, now.getTime() - lastSeen.getTime());
+        const diffSecs = Math.floor(diffMs / 1000);
+        const diffMins = Math.floor(diffSecs / 60);
+
+        if (diffSecs < 60) return `${diffSecs}s`;
+        if (diffMins < 60) return `${diffMins}m`;
+        const diffHours = Math.floor(diffMins / 60);
+        if (diffHours < 24) return `${diffHours}h`;
+        return lastSeen.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -281,10 +295,18 @@ export function CompanyDetails() {
                     </h1>
                     <p className="text-sm text-gray-500 font-mono mt-0.5">{company.document}</p>
                 </div>
-                <div className="ml-auto flex items-center space-x-3">
+                <div className="ml-auto flex items-center gap-3">
                     <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl border ${isOnline ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
                         {isOnline ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                         <span className="text-xs font-bold uppercase tracking-wider">{isOnline ? 'Instância Online' : 'Instância Offline'}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-blue-100 bg-blue-50/50 text-blue-600 shadow-sm">
+                        <Activity className={cn("w-3.5 h-3.5", isOnline && "animate-pulse")} />
+                        <span className="text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5">
+                            <span className="opacity-60">Ping:</span>
+                            {getPingInfo(company.lastSeenAt)}
+                        </span>
                     </div>
                 </div>
             </div>

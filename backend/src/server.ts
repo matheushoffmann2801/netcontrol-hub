@@ -43,7 +43,7 @@ const authMiddleware = (req: express.Request, res: express.Response, next: expre
 // ==========================================
 // ROTA DE LOGIN DO ADMIN
 // ==========================================
-app.post('/auth/login', async (req: any, res: any) => {
+app.post('/api/auth/login', async (req: any, res: any) => {
   try {
     const email = req.body.email?.trim();
     const password = req.body.password;
@@ -107,7 +107,7 @@ const requireAdmin = (req: any, res: any, next: any) => {
 // ==========================================
 // GET /auth/me - Validar Sessão
 // ==========================================
-app.get('/auth/me', requireAdmin, async (req: any, res: any) => {
+app.get('/api/auth/me', requireAdmin, async (req: any, res: any) => {
   try {
     const admin = await prisma.admin.findUnique({ where: { id: req.admin.id } });
     if (!admin) return res.status(401).json({ error: 'Admin não encontrado.' });
@@ -120,7 +120,7 @@ app.get('/auth/me', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // GET /stats - Estatísticas para o Dashboard
 // ==========================================
-app.get('/stats', requireAdmin, async (req: any, res: any) => {
+app.get('/api/stats', requireAdmin, async (req: any, res: any) => {
   try {
     const companies = await prisma.company.findMany();
 
@@ -218,7 +218,7 @@ app.get('/stats', requireAdmin, async (req: any, res: any) => {
   }
 });
 
-app.get('/companies', requireAdmin, async (req: any, res: any) => {
+app.get('/api/companies', requireAdmin, async (req: any, res: any) => {
   try {
     const companies = await prisma.company.findMany({
       include: {
@@ -230,18 +230,30 @@ app.get('/companies', requireAdmin, async (req: any, res: any) => {
       }
     });
 
+    const now = new Date().getTime();
+    const tenMinutes = 10 * 60 * 1000;
+
     // O campo 'modules' na licença é uma string JSON, vamos fazer o parse
     const companiesWithParsedModules = companies.map((company: any) => {
+      const companyCopy = { ...company };
+
+      // Calculate isOnline
+      companyCopy.isOnline = false;
+      if (company.lastSeenAt) {
+        const diffMs = now - new Date(company.lastSeenAt).getTime();
+        if (diffMs < tenMinutes && company.status === 'ACTIVE') {
+          companyCopy.isOnline = true;
+        }
+      }
+
       if (company.licenses && company.licenses.length > 0 && typeof company.licenses[0].modules === 'string') {
         // Criamos uma cópia para evitar mutação direta do objeto do Prisma
-        const companyCopy = { ...company };
         const licenseCopy = { ...company.licenses[0] };
         licenseCopy.modules = JSON.parse(licenseCopy.modules);
         delete (licenseCopy as any).token; // Remove o JWT token do payload por segurança
         companyCopy.licenses = [licenseCopy];
-        return companyCopy;
       }
-      return company;
+      return companyCopy;
     });
 
 
@@ -252,7 +264,7 @@ app.get('/companies', requireAdmin, async (req: any, res: any) => {
   }
 });
 
-app.post('/companies', requireAdmin, async (req: any, res: any) => {
+app.post('/api/companies', requireAdmin, async (req: any, res: any) => {
   try {
     const { name, document, modules, systemName, primaryColor, logoUrl } = req.body;
 
@@ -324,7 +336,7 @@ app.post('/companies', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // GET /companies/:id - Detalhes de uma empresa
 // ==========================================
-app.get('/companies/:id', requireAdmin, async (req: any, res: any) => {
+app.get('/api/companies/:id', requireAdmin, async (req: any, res: any) => {
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -336,6 +348,16 @@ app.get('/companies/:id', requireAdmin, async (req: any, res: any) => {
     }
     // Parse modules
     const companyCopy = { ...company } as any;
+
+    // Calculate isOnline
+    companyCopy.isOnline = false;
+    if (companyCopy.lastSeenAt) {
+      const diffMs = new Date().getTime() - new Date(companyCopy.lastSeenAt).getTime();
+      if (diffMs < 10 * 60 * 1000 && companyCopy.status === 'ACTIVE') {
+        companyCopy.isOnline = true;
+      }
+    }
+
     if (companyCopy.licenses && companyCopy.licenses.length > 0 && typeof companyCopy.licenses[0].modules === 'string') {
       companyCopy.licenses = companyCopy.licenses.map((l: any) => ({ ...l, modules: JSON.parse(l.modules) }));
     }
@@ -349,7 +371,7 @@ app.get('/companies/:id', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // GET /companies/:id/logs - Histórico de Auditoria
 // ==========================================
-app.get('/companies/:id/logs', requireAdmin, async (req: any, res: any) => {
+app.get('/api/companies/:id/logs', requireAdmin, async (req: any, res: any) => {
   try {
     const logs = await prisma.auditLog.findMany({
       where: { companyId: req.params.id },
@@ -366,7 +388,7 @@ app.get('/companies/:id/logs', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // GET /companies/:id/telemetry - Histórico de Telemetria
 // ==========================================
-app.get('/companies/:id/telemetry', requireAdmin, async (req: any, res: any) => {
+app.get('/api/companies/:id/telemetry', requireAdmin, async (req: any, res: any) => {
   try {
     const telemetry = await prisma.telemetry.findMany({
       where: { companyId: req.params.id },
@@ -383,7 +405,7 @@ app.get('/companies/:id/telemetry', requireAdmin, async (req: any, res: any) => 
 // ==========================================
 // PUT /companies/:id - Atualizar empresa
 // ==========================================
-app.put('/companies/:id', requireAdmin, async (req: any, res: any) => {
+app.put('/api/companies/:id', requireAdmin, async (req: any, res: any) => {
   try {
     const { name, document, status, systemName, primaryColor, logoUrl } = req.body;
 
@@ -480,7 +502,7 @@ app.put('/companies/:id', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // DELETE /companies/:id - Remover empresa
 // ==========================================
-app.delete('/companies/:id', requireAdmin, async (req: any, res: any) => {
+app.delete('/api/companies/:id', requireAdmin, async (req: any, res: any) => {
   try {
     // Remove TODAS as relações primeiro (ordem importa para FK constraints)
     await prisma.telemetry.deleteMany({ where: { companyId: req.params.id } });
@@ -498,7 +520,7 @@ app.delete('/companies/:id', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // POST /companies/:id/renew - Renovar Licença
 // ==========================================
-app.post('/companies/:id/renew', requireAdmin, async (req: any, res: any) => {
+app.post('/api/companies/:id/renew', requireAdmin, async (req: any, res: any) => {
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -558,7 +580,7 @@ app.post('/companies/:id/renew', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // PUT /companies/:id/modules - Alterar Módulos
 // ==========================================
-app.put('/companies/:id/modules', requireAdmin, async (req: any, res: any) => {
+app.put('/api/companies/:id/modules', requireAdmin, async (req: any, res: any) => {
   try {
     const { modules } = req.body;
 
@@ -630,7 +652,7 @@ app.put('/companies/:id/modules', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // PUT /companies/:id/expiration - Alterar Data de Expiração
 // ==========================================
-app.put('/companies/:id/expiration', requireAdmin, async (req: any, res: any) => {
+app.put('/api/companies/:id/expiration', requireAdmin, async (req: any, res: any) => {
   try {
     const { expiresAt } = req.body;
 
@@ -701,7 +723,7 @@ app.put('/companies/:id/expiration', requireAdmin, async (req: any, res: any) =>
 // ==========================================
 // API DE PLANOS
 // ==========================================
-app.get('/plans', authMiddleware, async (req: any, res: any) => {
+app.get('/api/plans', authMiddleware, async (req: any, res: any) => {
   try {
     const plans = await prisma.plan.findMany({ orderBy: { createdAt: 'desc' } });
     res.json(plans.map((p: any) => ({ ...p, modules: JSON.parse(p.modules) })));
@@ -711,7 +733,7 @@ app.get('/plans', authMiddleware, async (req: any, res: any) => {
   }
 });
 
-app.post('/plans', authMiddleware, async (req: any, res: any) => {
+app.post('/api/plans', authMiddleware, async (req: any, res: any) => {
   try {
     const { name, price, modules } = req.body;
     const plan = await prisma.plan.create({
@@ -728,7 +750,7 @@ app.post('/plans', authMiddleware, async (req: any, res: any) => {
   }
 });
 
-app.put('/plans/:id', authMiddleware, async (req: any, res: any) => {
+app.put('/api/plans/:id', authMiddleware, async (req: any, res: any) => {
   try {
     const { name, price, modules } = req.body;
     const plan = await prisma.plan.update({
@@ -746,7 +768,7 @@ app.put('/plans/:id', authMiddleware, async (req: any, res: any) => {
   }
 });
 
-app.delete('/plans/:id', authMiddleware, async (req: any, res: any) => {
+app.delete('/api/plans/:id', authMiddleware, async (req: any, res: any) => {
   try {
     await prisma.plan.delete({ where: { id: req.params.id as string } });
     res.json({ message: 'Plano removido com sucesso' });
@@ -759,7 +781,7 @@ app.delete('/plans/:id', authMiddleware, async (req: any, res: any) => {
 // ==========================================
 // NOTIFICAÇÕES (HUB -> CLIENTE)
 // ==========================================
-app.post('/companies/:id/notifications', authMiddleware, async (req: any, res: any) => {
+app.post('/api/companies/:id/notifications', authMiddleware, async (req: any, res: any) => {
   try {
     const { title, message, type } = req.body;
     const notification = await prisma.notification.create({
@@ -788,7 +810,7 @@ app.post('/companies/:id/notifications', authMiddleware, async (req: any, res: a
   }
 });
 
-app.post('/notifications/mark-read', async (req: any, res: any) => {
+app.post('/api/notifications/mark-read', async (req: any, res: any) => {
   // Esse endpoint é consumido pelo Cliente NetControl usando a sua licença (token JWT)
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'Token não fornecido' });
@@ -817,7 +839,7 @@ app.post('/notifications/mark-read', async (req: any, res: any) => {
 
 // Rota de Heartbeat e Validação de Licença
 // Não requer autenticação de admin web, pois é consumida pelo NetControl Client
-app.post('/heartbeat', async (req: any, res: any) => {
+app.post('/api/heartbeat', async (req: any, res: any) => {
   // O token geralmente é enviado no cabeçalho de autorização
   const authHeader = req.headers.authorization;
   const { cpuUsage, ramUsage, activeUsers } = req.body; // Telemetria adicionada
@@ -926,7 +948,7 @@ app.post('/heartbeat', async (req: any, res: any) => {
 // ==========================================
 // POST /companies/:id/force-sync - Forçar Atualização Imediata (Control Plane)
 // ==========================================
-app.post('/companies/:id/force-sync', requireAdmin, async (req: any, res: any) => {
+app.post('/api/companies/:id/force-sync', requireAdmin, async (req: any, res: any) => {
   try {
     const { id } = req.params;
 
@@ -965,7 +987,7 @@ app.post('/companies/:id/force-sync', requireAdmin, async (req: any, res: any) =
 // ADMINS CRUD
 // ==========================================
 
-app.get('/admins', requireAdmin, async (req: any, res: any) => {
+app.get('/api/admins', requireAdmin, async (req: any, res: any) => {
   try {
     const admins = await prisma.admin.findMany({
       select: { id: true, email: true, name: true, createdAt: true },
@@ -977,7 +999,7 @@ app.get('/admins', requireAdmin, async (req: any, res: any) => {
   }
 });
 
-app.post('/admins', requireAdmin, async (req: any, res: any) => {
+app.post('/api/admins', requireAdmin, async (req: any, res: any) => {
   try {
     const { email, password, name } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
@@ -996,7 +1018,7 @@ app.post('/admins', requireAdmin, async (req: any, res: any) => {
   }
 });
 
-app.put('/admins/:id', requireAdmin, async (req: any, res: any) => {
+app.put('/api/admins/:id', requireAdmin, async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const { email, password, name } = req.body;
@@ -1025,7 +1047,7 @@ app.put('/admins/:id', requireAdmin, async (req: any, res: any) => {
   }
 });
 
-app.delete('/admins/:id', requireAdmin, async (req: any, res: any) => {
+app.delete('/api/admins/:id', requireAdmin, async (req: any, res: any) => {
   try {
     const { id } = req.params;
     if (req.admin.id === id) {

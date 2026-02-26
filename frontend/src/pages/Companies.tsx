@@ -17,7 +17,7 @@ interface Company {
   licenseToken: string;
   modules: string[];
   createdAt: string;
-  status?: 'online' | 'offline';
+  isOnline: boolean;
 }
 
 function CompanySkeleton() {
@@ -153,13 +153,13 @@ export function Companies() {
 
               {/* Status */}
               <Badge
-                variant={company.status === 'online' ? 'default' : 'secondary'}
+                variant={company.isOnline ? 'default' : 'secondary'}
                 className={cn(
                   'text-[10px] font-semibold shrink-0',
-                  company.status === 'online' ? 'bg-emerald-100 text-emerald-700 border-0' : ''
+                  company.isOnline ? 'bg-emerald-100 text-emerald-700 border-0' : ''
                 )}
               >
-                {company.status === 'online' ? 'Online' : 'Offline'}
+                {company.isOnline ? 'Online' : 'Offline'}
               </Badge>
 
               {/* Actions */}
