@@ -122,4 +122,27 @@
   .stripe-rose {
     border-left: 3px solid hsl(346.8 77.2% 49.8%);
   }
+
+  /* Slide-up animation utility */
+  .animate-slide-up {
+    animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+/* Global animations */
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Font smoothing for premium text rendering */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }

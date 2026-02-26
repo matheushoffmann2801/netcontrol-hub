@@ -133,7 +133,7 @@ export function CompanyModal({ isOpen, onClose, onSubmit, initialData }: Company
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
               {MODULES_AVAILABLE.map(module => {
                 const selected = formData.modules.includes(module.id);
                 const isFull = module.id === 'FULL_ACCESS';

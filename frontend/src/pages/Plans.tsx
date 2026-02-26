@@ -15,10 +15,10 @@ const CONST_MODULES = [
 ];
 
 function Skeleton({ className }: { className?: string }) {
-    return <div className={cn('animate-pulse rounded-2xl bg-white/[0.05]', className)} />;
+    return <div className={cn('animate-pulse rounded-2xl bg-muted', className)} />;
 }
 
-/* ─── Dark Modal ─── */
+/* ─── Plan Modal (mobile-first bottom-sheet / desktop centered) ─── */
 function PlanModal({ open, onClose, plan, onSave }: {
     open: boolean; onClose: () => void; plan: any; onSave: (data: any) => void
 }) {
@@ -26,12 +26,16 @@ function PlanModal({ open, onClose, plan, onSave }: {
     const [price, setPrice] = useState(plan?.price?.toString() ?? '');
     const [mods, setMods] = useState<string[]>(plan?.modules ?? ['BASE']);
     const [saving, setSaving] = useState(false);
+    const [visible, setVisible] = useState(false);
 
     useEffect(() => {
         if (open) {
             setName(plan?.name ?? '');
             setPrice(plan?.price?.toString() ?? '');
             setMods(plan?.modules ?? ['BASE']);
+            requestAnimationFrame(() => setVisible(true));
+        } else {
+            setVisible(false);
         }
     }, [open, plan]);
 
@@ -51,63 +55,84 @@ function PlanModal({ open, onClose, plan, onSave }: {
         }
     };
 
+    const handleClose = () => {
+        setVisible(false);
+        setTimeout(onClose, 200);
+    };
+
     if (!open) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+            {/* Backdrop */}
             <div
-                className="relative w-full sm:max-w-lg sm:mx-4 rounded-t-3xl sm:rounded-3xl overflow-hidden"
-                style={{
-                    background: '#10111a',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
-                }}
+                className={cn(
+                    'absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200',
+                    visible ? 'opacity-100' : 'opacity-0'
+                )}
+                onClick={handleClose}
+            />
+            {/* Modal panel */}
+            <div
+                className={cn(
+                    'relative w-full sm:max-w-lg sm:mx-4 rounded-t-3xl sm:rounded-2xl overflow-hidden bg-background border border-border shadow-2xl transition-all duration-300',
+                    visible
+                        ? 'translate-y-0 opacity-100'
+                        : 'translate-y-8 sm:translate-y-4 opacity-0',
+                    'max-h-[90dvh] flex flex-col'
+                )}
             >
-                {/* Header glow */}
-                <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
+                {/* Accent line */}
+                <div className="h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+
+                {/* Drag indicator (mobile) */}
+                <div className="sm:hidden flex justify-center pt-3 pb-1">
+                    <div className="w-10 h-1 rounded-full bg-muted-foreground/20" />
+                </div>
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 pt-5 pb-4">
+                <div className="flex items-center justify-between px-5 sm:px-6 pt-3 sm:pt-5 pb-4">
                     <div>
-                        <h2 className="text-lg font-bold text-white">
+                        <h2 className="text-lg font-bold text-foreground">
                             {plan ? 'Editar Plano' : 'Novo Plano'}
                         </h2>
-                        <p className="text-xs text-white/30 mt-0.5">Configure módulos e preço do pacote</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Configure módulos e preço do pacote</p>
                     </div>
-                    <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center text-white/30 hover:text-white hover:bg-white/5 transition-all">
+                    <button onClick={handleClose} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                {/* Fields */}
-                <div className="px-6 space-y-4 pb-4">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="col-span-2">
-                            <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-1.5">Nome do Plano</label>
+                {/* Scrollable body */}
+                <div className="flex-1 overflow-y-auto px-5 sm:px-6 space-y-4 pb-4">
+                    {/* Fields */}
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Nome do Plano</label>
                             <input
                                 value={name}
                                 onChange={e => setName(e.target.value)}
                                 placeholder="Ex: Master"
-                                className="w-full h-11 px-4 rounded-xl bg-white/[0.04] border border-white/[0.07] text-white placeholder-white/20 text-sm outline-none focus:border-indigo-500/50 transition-all"
+                                className="w-full h-11 px-4 rounded-xl bg-muted/50 border border-border text-foreground placeholder-muted-foreground/40 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
                             />
                         </div>
-                        <div className="col-span-2">
-                            <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-1.5">Preço Monthly (R$)</label>
+                        <div>
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5">Preço Mensal (R$)</label>
                             <input
                                 type="number"
                                 value={price}
                                 onChange={e => setPrice(e.target.value)}
                                 placeholder="0.00"
                                 step="0.01"
-                                className="w-full h-11 px-4 rounded-xl bg-white/[0.04] border border-white/[0.07] text-white placeholder-white/20 text-sm outline-none focus:border-indigo-500/50 transition-all"
+                                className="w-full h-11 px-4 rounded-xl bg-muted/50 border border-border text-foreground placeholder-muted-foreground/40 text-sm outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all"
                             />
                         </div>
                     </div>
 
+                    {/* Modules */}
                     <div>
-                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-widest block mb-2">Módulos do Pacote</label>
-                        <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-2">Módulos do Pacote</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {CONST_MODULES.map(mod => {
                                 const active = mods.includes(mod.id);
                                 const isBase = mod.id === 'BASE';
@@ -118,11 +143,11 @@ function PlanModal({ open, onClose, plan, onSave }: {
                                         onClick={() => toggle(mod.id)}
                                         disabled={isBase}
                                         className={cn(
-                                            'relative p-3 rounded-xl border text-left flex items-center gap-2 transition-all duration-200',
+                                            'relative p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all duration-200',
                                             active
-                                                ? 'border-indigo-500/40 bg-indigo-500/15 text-white'
-                                                : 'border-white/[0.07] bg-white/[0.03] text-white/40 hover:border-white/10 hover:text-white/60',
-                                            isBase && 'opacity-60 cursor-not-allowed'
+                                                ? 'border-primary/40 bg-primary/5 text-foreground shadow-sm'
+                                                : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/20 hover:text-foreground',
+                                            isBase && 'opacity-50 cursor-not-allowed'
                                         )}
                                     >
                                         <span className="text-base">{mod.icon}</span>
@@ -130,8 +155,8 @@ function PlanModal({ open, onClose, plan, onSave }: {
                                             <span className="text-[11px] font-bold block truncate">{mod.name}</span>
                                         </div>
                                         {active && (
-                                            <div className="w-4 h-4 rounded-full bg-indigo-500 flex items-center justify-center shrink-0">
-                                                <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                                            <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                                <Check className="w-3 h-3 text-primary-foreground" strokeWidth={3} />
                                             </div>
                                         )}
                                     </button>
@@ -142,15 +167,14 @@ function PlanModal({ open, onClose, plan, onSave }: {
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 pb-6 pt-3 border-t border-white/[0.06] flex gap-3">
-                    <button onClick={onClose} className="flex-1 h-11 rounded-xl text-sm font-bold text-white/40 bg-white/[0.04] hover:bg-white/[0.07] transition-all">
+                <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-3 border-t border-border flex gap-3 shrink-0">
+                    <button onClick={handleClose} className="flex-1 h-11 rounded-xl text-sm font-bold text-muted-foreground bg-muted/50 hover:bg-muted transition-all">
                         Cancelar
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="flex-1 h-11 rounded-xl text-sm font-bold text-white transition-all hover:shadow-[0_8px_24px_rgba(99,102,241,0.3)] hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-60"
-                        style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+                        className="flex-1 h-11 rounded-xl text-sm font-bold text-primary-foreground bg-primary hover:bg-primary/90 transition-all hover:shadow-lg active:scale-[0.98] disabled:opacity-60"
                     >
                         {saving ? 'Salvando...' : 'Salvar Plano'}
                     </button>
@@ -212,21 +236,25 @@ export function Plans() {
         }
     };
 
-    // Color accent per plan index
-    const ACCENTS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+    const ACCENTS = [
+        { bg: 'bg-blue-500/10', border: 'border-blue-500/20', text: 'text-blue-600', dot: 'bg-blue-500' },
+        { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+        { bg: 'bg-amber-500/10', border: 'border-amber-500/20', text: 'text-amber-600', dot: 'bg-amber-500' },
+        { bg: 'bg-rose-500/10', border: 'border-rose-500/20', text: 'text-rose-600', dot: 'bg-rose-500' },
+        { bg: 'bg-violet-500/10', border: 'border-violet-500/20', text: 'text-violet-600', dot: 'bg-violet-500' },
+    ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5 sm:space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Planos & Pacotes</h1>
-                    <p className="text-sm text-white/40 mt-1">{plans.length} pacote{plans.length !== 1 ? 's' : ''} configurado{plans.length !== 1 ? 's' : ''}</p>
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground">Planos & Pacotes</h1>
+                    <p className="text-sm text-muted-foreground mt-1">{plans.length} pacote{plans.length !== 1 ? 's' : ''} configurado{plans.length !== 1 ? 's' : ''}</p>
                 </div>
                 <button
                     onClick={() => handleOpenModal()}
-                    className="flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(99,102,241,0.35)] active:scale-[0.98]"
-                    style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
+                    className="flex items-center gap-2 h-10 px-5 rounded-xl text-sm font-bold text-primary-foreground bg-primary transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]"
                 >
                     <Plus className="w-4 h-4" strokeWidth={2.5} />
                     Novo Plano
@@ -234,58 +262,52 @@ export function Plans() {
             </div>
 
             {loading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                     {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-64" />)}
                 </div>
             ) : plans.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 gap-5">
-                    <div className="w-20 h-20 rounded-3xl flex items-center justify-center bg-white/[0.04] border border-white/[0.06]">
-                        <Package className="w-9 h-9 text-white/20" />
+                <div className="flex flex-col items-center justify-center py-16 sm:py-24 gap-5">
+                    <div className="w-20 h-20 rounded-3xl flex items-center justify-center bg-muted border border-border">
+                        <Package className="w-9 h-9 text-muted-foreground/40" />
                     </div>
                     <div className="text-center">
-                        <p className="text-white/60 font-semibold">Nenhum plano cadastrado</p>
-                        <p className="text-white/30 text-sm mt-1">Crie planos para oferecer pacotes às suas empresas</p>
+                        <p className="text-foreground/70 font-semibold">Nenhum plano cadastrado</p>
+                        <p className="text-muted-foreground text-sm mt-1">Crie planos para oferecer pacotes às suas empresas</p>
                     </div>
                     <button
                         onClick={() => handleOpenModal()}
-                        className="flex items-center gap-2 h-9 px-5 rounded-xl text-sm font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"
+                        className="flex items-center gap-2 h-9 px-5 rounded-xl text-sm font-bold text-primary bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-colors"
                     >
                         <Plus className="w-3.5 h-3.5" /> Criar primeiro plano
                     </button>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                     {plans.map((plan, idx) => {
                         const accent = ACCENTS[idx % ACCENTS.length];
                         return (
                             <div
                                 key={plan.id}
-                                className="relative rounded-2xl p-5 border border-white/[0.06] bg-white/[0.02] flex flex-col gap-4 hover:border-white/[0.1] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden group"
+                                className="relative rounded-2xl p-5 border border-border bg-card flex flex-col gap-4 hover:border-primary/20 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 overflow-hidden group"
                             >
                                 {/* BG glow */}
-                                <div
-                                    className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-15 blur-2xl"
-                                    style={{ background: accent }}
-                                />
+                                <div className={cn('absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-30 blur-2xl', accent.dot)} />
 
                                 {/* Top row */}
                                 <div className="relative flex justify-between items-start">
-                                    <div
-                                        className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg"
-                                        style={{ background: `${accent}25`, boxShadow: `0 0 20px ${accent}30` }}
-                                    >
-                                        <Package className="w-5 h-5" style={{ color: accent }} />
+                                    <div className={cn('w-11 h-11 rounded-2xl flex items-center justify-center', accent.bg)}>
+                                        <Package className={cn('w-5 h-5', accent.text)} />
                                     </div>
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => handleOpenModal(plan)}
-                                            className="w-8 h-8 flex items-center justify-center rounded-xl text-white/30 hover:text-white hover:bg-white/[0.07] transition-all"
+                                            className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                                         >
                                             <Edit className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(plan.id)}
-                                            className="w-8 h-8 flex items-center justify-center rounded-xl text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                            className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-all"
                                         >
                                             <Trash2 className="w-3.5 h-3.5" />
                                         </button>
@@ -294,16 +316,16 @@ export function Plans() {
 
                                 {/* Info */}
                                 <div className="relative">
-                                    <h3 className="text-lg font-bold text-white">{plan.name}</h3>
+                                    <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
                                     <div className="flex items-baseline gap-1 mt-1">
-                                        <span className="text-2xl font-black text-white">R$ {plan.price.toFixed(2)}</span>
-                                        <span className="text-xs font-medium text-white/30">/mês</span>
+                                        <span className="text-2xl font-black text-foreground">R$ {plan.price.toFixed(2)}</span>
+                                        <span className="text-xs font-medium text-muted-foreground">/mês</span>
                                     </div>
                                 </div>
 
                                 {/* Modules */}
                                 <div className="relative">
-                                    <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest mb-2">
+                                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
                                         {plan.modules.length} módulo{plan.modules.length !== 1 ? 's' : ''}
                                     </p>
                                     <div className="flex flex-wrap gap-1.5">
@@ -312,12 +334,10 @@ export function Plans() {
                                             return (
                                                 <span
                                                     key={modId}
-                                                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border"
-                                                    style={{
-                                                        backgroundColor: `${accent}15`,
-                                                        borderColor: `${accent}25`,
-                                                        color: accent,
-                                                    }}
+                                                    className={cn(
+                                                        'flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border',
+                                                        accent.bg, accent.border, accent.text
+                                                    )}
                                                 >
                                                     <span>{mod?.icon}</span>
                                                     {mod?.name || modId}

@@ -52,7 +52,7 @@ function Sidebar({ collapsed, onToggle, currentPath, initial, displayName, onLog
                 className
             )}>
                 {/* Brand */}
-                <div className={cn('flex items-center h-16 px-3.5 shrink-0 border-b border-border gap-2.5', collapsed && 'justify-center')}>
+                <div className={cn('flex items-center h-14 px-3.5 shrink-0 border-b border-border gap-2.5', collapsed && 'justify-center')}>
                     <div className="w-8 h-8 shrink-0 rounded-xl flex items-center justify-center font-black text-[12px] text-white shadow-md select-none" style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #374151 100%)' }}>
                         NC
                     </div>
