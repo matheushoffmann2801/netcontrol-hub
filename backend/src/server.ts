@@ -43,7 +43,7 @@ const authMiddleware = (req: express.Request, res: express.Response, next: expre
 // ==========================================
 // ROTA DE LOGIN DO ADMIN
 // ==========================================
-app.post('/auth/login', async (req, res) => {
+app.post('/auth/login', async (req: any, res: any) => {
   try {
     const email = req.body.email?.trim();
     const password = req.body.password;
@@ -120,7 +120,7 @@ app.get('/auth/me', requireAdmin, async (req: any, res: any) => {
 // ==========================================
 // GET /stats - Estatísticas para o Dashboard
 // ==========================================
-app.get('/stats', requireAdmin, async (req, res) => {
+app.get('/stats', requireAdmin, async (req: any, res: any) => {
   try {
     const companies = await prisma.company.findMany();
 
@@ -150,14 +150,14 @@ app.get('/stats', requireAdmin, async (req, res) => {
 
     if (onlineCompanyIds.length > 0) {
       const latestTelemetries = await Promise.all(
-        onlineCompanyIds.map(id => prisma.telemetry.findFirst({
+        onlineCompanyIds.map((id: string) => prisma.telemetry.findFirst({
           where: { companyId: id },
           orderBy: { timestamp: 'desc' }
         }))
       );
 
       let validTels = 0;
-      latestTelemetries.forEach(t => {
+      latestTelemetries.forEach((t: any) => {
         if (t) {
           avgCpu += t.cpuUsage;
           avgRam += t.ramUsage;
@@ -172,10 +172,32 @@ app.get('/stats', requireAdmin, async (req, res) => {
       }
     }
 
+    // Calcular total de módulos ativos (parsing do JSON de cada licença mais recente)
+    let totalActiveModules = 0;
+    for (const company of companies) {
+      if (company.status === 'ACTIVE') {
+        const lastLicense = await prisma.license.findFirst({
+          where: { companyId: company.id },
+          orderBy: { createdAt: 'desc' }
+        });
+        if (lastLicense) {
+          try {
+            const mods = JSON.parse(lastLicense.modules);
+            if (Array.isArray(mods)) {
+              totalActiveModules += mods.length;
+            }
+          } catch (e) {
+            console.error(`Erro ao parsear módulos da empresa ${company.id}`);
+          }
+        }
+      }
+    }
+
     res.status(200).json({
       activeCompanies,
       onlineInstances,
       offlineInstances: companies.length - onlineInstances,
+      totalActiveModules,
       telemetry: {
         avgCpu,
         avgRam,
@@ -196,7 +218,7 @@ app.get('/stats', requireAdmin, async (req, res) => {
   }
 });
 
-app.get('/companies', requireAdmin, async (req, res) => {
+app.get('/companies', requireAdmin, async (req: any, res: any) => {
   try {
     const companies = await prisma.company.findMany({
       include: {
@@ -209,7 +231,7 @@ app.get('/companies', requireAdmin, async (req, res) => {
     });
 
     // O campo 'modules' na licença é uma string JSON, vamos fazer o parse
-    const companiesWithParsedModules = companies.map(company => {
+    const companiesWithParsedModules = companies.map((company: any) => {
       if (company.licenses && company.licenses.length > 0 && typeof company.licenses[0].modules === 'string') {
         // Criamos uma cópia para evitar mutação direta do objeto do Prisma
         const companyCopy = { ...company };
@@ -230,7 +252,7 @@ app.get('/companies', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/companies', requireAdmin, async (req, res) => {
+app.post('/companies', requireAdmin, async (req: any, res: any) => {
   try {
     const { name, document, modules, systemName, primaryColor, logoUrl } = req.body;
 
@@ -302,7 +324,7 @@ app.post('/companies', requireAdmin, async (req, res) => {
 // ==========================================
 // GET /companies/:id - Detalhes de uma empresa
 // ==========================================
-app.get('/companies/:id', requireAdmin, async (req, res) => {
+app.get('/companies/:id', requireAdmin, async (req: any, res: any) => {
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -327,7 +349,7 @@ app.get('/companies/:id', requireAdmin, async (req, res) => {
 // ==========================================
 // GET /companies/:id/logs - Histórico de Auditoria
 // ==========================================
-app.get('/companies/:id/logs', requireAdmin, async (req, res) => {
+app.get('/companies/:id/logs', requireAdmin, async (req: any, res: any) => {
   try {
     const logs = await prisma.auditLog.findMany({
       where: { companyId: req.params.id },
@@ -344,7 +366,7 @@ app.get('/companies/:id/logs', requireAdmin, async (req, res) => {
 // ==========================================
 // GET /companies/:id/telemetry - Histórico de Telemetria
 // ==========================================
-app.get('/companies/:id/telemetry', requireAdmin, async (req, res) => {
+app.get('/companies/:id/telemetry', requireAdmin, async (req: any, res: any) => {
   try {
     const telemetry = await prisma.telemetry.findMany({
       where: { companyId: req.params.id },
@@ -361,7 +383,7 @@ app.get('/companies/:id/telemetry', requireAdmin, async (req, res) => {
 // ==========================================
 // PUT /companies/:id - Atualizar empresa
 // ==========================================
-app.put('/companies/:id', requireAdmin, async (req, res) => {
+app.put('/companies/:id', requireAdmin, async (req: any, res: any) => {
   try {
     const { name, document, status, systemName, primaryColor, logoUrl } = req.body;
 
@@ -458,7 +480,7 @@ app.put('/companies/:id', requireAdmin, async (req, res) => {
 // ==========================================
 // DELETE /companies/:id - Remover empresa
 // ==========================================
-app.delete('/companies/:id', requireAdmin, async (req, res) => {
+app.delete('/companies/:id', requireAdmin, async (req: any, res: any) => {
   try {
     // Remove TODAS as relações primeiro (ordem importa para FK constraints)
     await prisma.telemetry.deleteMany({ where: { companyId: req.params.id } });
@@ -476,7 +498,7 @@ app.delete('/companies/:id', requireAdmin, async (req, res) => {
 // ==========================================
 // POST /companies/:id/renew - Renovar Licença
 // ==========================================
-app.post('/companies/:id/renew', requireAdmin, async (req, res) => {
+app.post('/companies/:id/renew', requireAdmin, async (req: any, res: any) => {
   try {
     const company = await prisma.company.findUnique({
       where: { id: req.params.id },
@@ -536,7 +558,7 @@ app.post('/companies/:id/renew', requireAdmin, async (req, res) => {
 // ==========================================
 // PUT /companies/:id/modules - Alterar Módulos
 // ==========================================
-app.put('/companies/:id/modules', requireAdmin, async (req, res) => {
+app.put('/companies/:id/modules', requireAdmin, async (req: any, res: any) => {
   try {
     const { modules } = req.body;
 
@@ -608,7 +630,7 @@ app.put('/companies/:id/modules', requireAdmin, async (req, res) => {
 // ==========================================
 // PUT /companies/:id/expiration - Alterar Data de Expiração
 // ==========================================
-app.put('/companies/:id/expiration', requireAdmin, async (req, res) => {
+app.put('/companies/:id/expiration', requireAdmin, async (req: any, res: any) => {
   try {
     const { expiresAt } = req.body;
 
@@ -679,17 +701,17 @@ app.put('/companies/:id/expiration', requireAdmin, async (req, res) => {
 // ==========================================
 // API DE PLANOS
 // ==========================================
-app.get('/plans', authMiddleware, async (req, res) => {
+app.get('/plans', authMiddleware, async (req: any, res: any) => {
   try {
     const plans = await prisma.plan.findMany({ orderBy: { createdAt: 'desc' } });
-    res.json(plans.map(p => ({ ...p, modules: JSON.parse(p.modules) })));
+    res.json(plans.map((p: any) => ({ ...p, modules: JSON.parse(p.modules) })));
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao buscar planos' });
   }
 });
 
-app.post('/plans', authMiddleware, async (req, res) => {
+app.post('/plans', authMiddleware, async (req: any, res: any) => {
   try {
     const { name, price, modules } = req.body;
     const plan = await prisma.plan.create({
@@ -706,7 +728,7 @@ app.post('/plans', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/plans/:id', authMiddleware, async (req, res) => {
+app.put('/plans/:id', authMiddleware, async (req: any, res: any) => {
   try {
     const { name, price, modules } = req.body;
     const plan = await prisma.plan.update({
@@ -724,7 +746,7 @@ app.put('/plans/:id', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/plans/:id', authMiddleware, async (req, res) => {
+app.delete('/plans/:id', authMiddleware, async (req: any, res: any) => {
   try {
     await prisma.plan.delete({ where: { id: req.params.id as string } });
     res.json({ message: 'Plano removido com sucesso' });
@@ -737,7 +759,7 @@ app.delete('/plans/:id', authMiddleware, async (req, res) => {
 // ==========================================
 // NOTIFICAÇÕES (HUB -> CLIENTE)
 // ==========================================
-app.post('/companies/:id/notifications', authMiddleware, async (req, res) => {
+app.post('/companies/:id/notifications', authMiddleware, async (req: any, res: any) => {
   try {
     const { title, message, type } = req.body;
     const notification = await prisma.notification.create({
@@ -766,7 +788,7 @@ app.post('/companies/:id/notifications', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/notifications/mark-read', async (req, res) => {
+app.post('/notifications/mark-read', async (req: any, res: any) => {
   // Esse endpoint é consumido pelo Cliente NetControl usando a sua licença (token JWT)
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: 'Token não fornecido' });
@@ -795,7 +817,7 @@ app.post('/notifications/mark-read', async (req, res) => {
 
 // Rota de Heartbeat e Validação de Licença
 // Não requer autenticação de admin web, pois é consumida pelo NetControl Client
-app.post('/heartbeat', async (req, res) => {
+app.post('/heartbeat', async (req: any, res: any) => {
   // O token geralmente é enviado no cabeçalho de autorização
   const authHeader = req.headers.authorization;
   const { cpuUsage, ramUsage, activeUsers } = req.body; // Telemetria adicionada
@@ -904,7 +926,7 @@ app.post('/heartbeat', async (req, res) => {
 // ==========================================
 // POST /companies/:id/force-sync - Forçar Atualização Imediata (Control Plane)
 // ==========================================
-app.post('/companies/:id/force-sync', requireAdmin, async (req, res) => {
+app.post('/companies/:id/force-sync', requireAdmin, async (req: any, res: any) => {
   try {
     const { id } = req.params;
 
@@ -943,7 +965,7 @@ app.post('/companies/:id/force-sync', requireAdmin, async (req, res) => {
 // ADMINS CRUD
 // ==========================================
 
-app.get('/admins', requireAdmin, async (req, res) => {
+app.get('/admins', requireAdmin, async (req: any, res: any) => {
   try {
     const admins = await prisma.admin.findMany({
       select: { id: true, email: true, name: true, createdAt: true },
@@ -955,7 +977,7 @@ app.get('/admins', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/admins', requireAdmin, async (req, res: any) => {
+app.post('/admins', requireAdmin, async (req: any, res: any) => {
   try {
     const { email, password, name } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email e senha são obrigatórios.' });
@@ -1018,7 +1040,7 @@ app.delete('/admins/:id', requireAdmin, async (req: any, res: any) => {
 });
 
 // SPA Fallback: qualquer rota não-API serve o frontend React
-app.get('{*path}', (req, res) => {
+app.get('*path', (req: any, res: any) => {
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 
@@ -1026,3 +1048,5 @@ const PORT = process.env.PORT || 3333;
 app.listen(PORT, () => {
   console.log(`🚀 NetControl Hub rodando na porta ${PORT}`);
 });
+
+

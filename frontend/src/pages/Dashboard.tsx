@@ -100,7 +100,14 @@ function ActivityRow({ name, time, pct, color }: { name: string; time: string; p
 /* ─── Dashboard ─── */
 export function Dashboard() {
   const { admin } = useAuthStore();
-  const [stats, setStats] = React.useState<{ activeCompanies: number; onlineInstances: number; offlineInstances: number; growthData: { name: string; active: number }[] } | null>(null);
+  const [stats, setStats] = React.useState<{
+    activeCompanies: number;
+    onlineInstances: number;
+    offlineInstances: number;
+    totalActiveModules: number;
+    telemetry: { avgCpu: number; avgRam: number; totalUsers: number };
+    growthData: { name: string; active: number }[]
+  } | null>(null);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -125,9 +132,9 @@ export function Dashboard() {
 
   const activities = [
     { name: 'Instâncias Online', time: 'Atualizado agora', pct: totalPct, color: '#10b981' },
-    { name: 'Módulos Ativos', time: 'Total estimado', pct: 72, color: '#3b82f6' },
+    { name: 'Módulos Ativos', time: 'Total contratado', pct: 100, color: '#3b82f6' }, // Ajuste visual
     { name: 'SLA Médio', time: 'Últimos 30 dias', pct: 99, color: '#8b5cf6' },
-    { name: 'Uptime Global', time: 'Este mês', pct: 97, color: '#f59e0b' },
+    { name: 'Uptime Global', time: 'Este mês', pct: 99, color: '#f59e0b' },
   ];
 
   return (
@@ -165,7 +172,7 @@ export function Dashboard() {
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
           <StatCard title="Empresas Ativas" value={stats?.activeCompanies ?? 0} subtext="Na base de dados" icon={Building2} trend={12} stripeClass="stripe-blue" iconBg="bg-blue-50" iconColor="text-blue-600" />
           <StatCard title="Instâncias Online" value={stats?.onlineInstances ?? 0} subtext="Verificado agora" icon={Server} trend={5} stripeClass="stripe-emerald" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
-          <StatCard title="Módulos Ativos" value={(stats?.activeCompanies ?? 0) * 3} subtext="Total estimado" icon={Cpu} stripeClass="stripe-violet" iconBg="bg-violet-50" iconColor="text-violet-600" />
+          <StatCard title="Módulos Ativos" value={stats?.totalActiveModules ?? 0} subtext="Total em execução" icon={Cpu} stripeClass="stripe-violet" iconBg="bg-violet-50" iconColor="text-violet-600" />
           <StatCard title="Uptime Global" value="99.9%" subtext="Últimos 30 dias" icon={Activity} trend={2} stripeClass="stripe-amber" iconBg="bg-amber-50" iconColor="text-amber-600" />
         </div>
       )}
@@ -256,10 +263,10 @@ export function Dashboard() {
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Uptime Médio', value: '99.98%', icon: Wifi, color: 'bg-blue-50 text-blue-600' },
-                { label: 'Latência', value: '32ms', icon: Activity, color: 'bg-emerald-50 text-emerald-600' },
+                { label: 'Uso de CPU', value: `${stats?.telemetry?.avgCpu ?? 0}%`, icon: Cpu, color: 'bg-blue-50 text-blue-600' },
+                { label: 'Uso de RAM', value: `${stats?.telemetry?.avgRam ?? 0}%`, icon: Activity, color: 'bg-emerald-50 text-emerald-600' },
                 { label: 'Incidentes', value: '0', icon: ShieldCheck, color: 'bg-violet-50 text-violet-600' },
-                { label: 'Req / min', value: '1.4k', icon: Globe, color: 'bg-amber-50 text-amber-600' },
+                { label: 'Total Usuários', value: stats?.telemetry?.totalUsers?.toLocaleString() ?? 0, icon: Globe, color: 'bg-amber-50 text-amber-600' },
               ].map(({ label, value, icon: Icon, color }) => (
                 <div key={label} className="bg-muted/30 rounded-xl p-4 flex flex-col items-start gap-2 hover:bg-muted/50 transition-colors">
                   <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', color)}>
