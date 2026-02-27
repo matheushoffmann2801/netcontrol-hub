@@ -5,6 +5,8 @@ import jwt from 'jsonwebtoken';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import path from 'path';
+import fs from 'fs'; // Added
+import multer from 'multer'; // Added
 
 const prisma = new PrismaClient();
 const app = express();
@@ -986,6 +988,108 @@ app.post('/api/companies/:id/force-sync', requireAdmin, async (req: any, res: an
 // ==========================================
 // ADMINS CRUD
 // ==========================================
+
+// ==========================================
+// CLIENT BACKUPS CRUD & UPLOAD
+// ==========================================
+
+// Configuração do Multer para salvar os arquivos de backup organizados por Empresa
+const backupStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Para a rota de upload pública (com token do cliente), req.companyId será definido na validação
+    const companyId = (req as any).companyId || 'unknown'; 
+    const dir = path.join(__dirname, '..', 'data', 'backups', companyId);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `backup-${Date.now()}-${file.originalname}`);
+  }
+});
+const uploadBackup = multer({ storage: backupStorage });
+
+// Rota consumida pelo NetControl Client para fazer upload do arquivo ZIP
+app.post('/backups/upload', uploadBackup.single('file'), async (req: any, res: any) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(401).json({ error: 'Token de licença não fornecido' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
+    } catch (e) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Arquivo de backup ausente' });
+    }
+
+    const type = req.body.type || 'AUTO';
+
+    // Salvar registro no banco
+    const backup = await prisma.clientBackup.create({
+      data: {
+        companyId: decoded.companyId,
+        filename: req.file.filename,
+        sizeBytes: req.file.size,
+        type: type,
+      }
+    });
+
+    res.status(200).json({ success: true, message: 'Backup recebido com sucesso', backupId: backup.id });
+  } catch (error) {
+    console.error('Erro ao processar upload de backup:', error);
+    if (req.file && fs.existsSync(req.file.path)) {
+       fs.unlinkSync(req.file.path); // Remove arquivo se falhar a criar no DB
+    }
+    res.status(500).json({ error: 'Erro interno ao processar backup' });
+  }
+});
+
+// Admin lista backups de uma empresa
+app.get('/api/companies/:id/backups', requireAdmin, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const backups = await prisma.clientBackup.findMany({
+      where: { companyId: id },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(backups);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao listar backups da empresa' });
+  }
+});
+
+// Admin baixa um backup específico
+app.get('/api/companies/:id/backups/:backupId/download', requireAdmin, async (req: any, res: any) => {
+  try {
+    const { id, backupId } = req.params;
+    const backup = await prisma.clientBackup.findUnique({
+      where: { id: backupId, companyId: id }
+    });
+
+    if (!backup) {
+      return res.status(404).json({ error: 'Backup não encontrado' });
+    }
+
+    const filePath = path.join(__dirname, '..', 'data', 'backups', id, backup.filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Arquivo físico do backup não encontrado no servidor' });
+    }
+
+    res.download(filePath, backup.filename);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao iniciar download do backup' });
+  }
+});
 
 app.get('/api/admins', requireAdmin, async (req: any, res: any) => {
   try {

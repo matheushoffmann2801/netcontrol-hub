@@ -25,6 +25,7 @@ model Company {
   auditLogs     AuditLog[]
   telemetries   Telemetry[]
   notifications Notification[]
+  clientBackups ClientBackup[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -103,6 +104,18 @@ model Notification {
   message   String
   type      String   @default("INFO") // INFO, WARNING, ERROR, SUCCESS
   read      Boolean  @default(false)
+  
+  createdAt DateTime @default(now())
+}
+
+model ClientBackup {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  filename  String
+  sizeBytes Int
+  type      String   @default("AUTO") // AUTO, MANUAL
   
   createdAt DateTime @default(now())
 }

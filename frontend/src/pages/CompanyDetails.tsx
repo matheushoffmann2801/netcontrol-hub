@@ -5,7 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import {
     ArrowLeft, CheckCircle2, XCircle, Shield,
     Activity, Server, History, RefreshCcw, Power, Eye, Fingerprint, Database,
-    Copy, Edit, Check, Sparkles, Save, Send, BellRing
+    Copy, Edit, Check, Sparkles, Save, Send, BellRing, Download, HardDrive
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -46,8 +46,9 @@ export function CompanyDetails() {
     const [company, setCompany] = useState<Company | null>(null);
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [telemetry, setTelemetry] = useState<Telemetry[]>([]);
+    const [backups, setBackups] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'TELEMETRY' | 'AUDIT'>('OVERVIEW');
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'TELEMETRY' | 'AUDIT' | 'BACKUPS'>('OVERVIEW');
     const [isActionLoading, setIsActionLoading] = useState(false);
 
     useEffect(() => {
@@ -58,19 +59,43 @@ export function CompanyDetails() {
 
     const loadCompanyData = async () => {
         try {
-            const [compRes, logsRes, telRes] = await Promise.all([
+            const [compRes, logsRes, telRes, backupsRes] = await Promise.all([
                 api.get(`/companies/${id}`),
                 api.get(`/companies/${id}/logs`),
-                api.get(`/companies/${id}/telemetry`)
+                api.get(`/companies/${id}/telemetry`),
+                api.get(`/companies/${id}/backups`)
             ]);
             setCompany(compRes.data);
             setLogs(logsRes.data);
             setTelemetry(telRes.data);
+            setBackups(backupsRes.data);
         } catch (error) {
             toast.error('Erro ao carregar os dados da empresa.');
             console.error(error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDownloadBackup = async (backupId: string, filename: string) => {
+        const toastId = toast.loading('Iniciando download...');
+        try {
+            const response = await api.get(`/companies/${id}/backups/${backupId}/download`, { responseType: 'blob' });
+
+            // Criar link temporário para forçar o download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Download concluído!', { id: toastId });
+        } catch (error) {
+            console.error('Erro no download:', error);
+            toast.error('Falha ao baixar arquivo físico.', { id: toastId });
         }
     };
 
@@ -342,16 +367,17 @@ export function CompanyDetails() {
             </div>
 
             {/* Tabs */}
-            <div className="flex space-x-2 border-b border-gray-200 pb-px">
+            <div className="flex space-x-2 border-b border-gray-200 pb-px overflow-x-auto custom-scrollbar">
                 {[
                     { id: 'OVERVIEW', label: 'Visão Geral', icon: Eye },
-                    { id: 'TELEMETRY', label: 'Telemetria do Servidor', icon: Activity },
-                    { id: 'AUDIT', label: 'Logs de Auditoria', icon: History }
+                    { id: 'TELEMETRY', label: 'Telemetria', icon: Activity },
+                    { id: 'AUDIT', label: 'Logs', icon: History },
+                    { id: 'BACKUPS', label: 'Backups (DR)', icon: HardDrive }
                 ].map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
-                        className={`flex items-center space-x-2 px-5 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === tab.id
+                        className={`flex items-center space-x-2 px-5 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
                             ? 'border-blue-600 text-blue-600'
                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                             }`}
@@ -788,6 +814,67 @@ export function CompanyDetails() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* TAB CONTENT: BACKUPS */}
+            {activeTab === 'BACKUPS' && (
+                <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+                    <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-blue-50/30">
+                        <div className="flex items-center">
+                            <div className="p-2 sm:p-3 bg-blue-100 text-blue-600 rounded-xl mr-4">
+                                <HardDrive className="w-5 h-5 sm:w-6 sm:h-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">Cofre de Backups</h3>
+                                <p className="text-xs sm:text-sm text-gray-500">Arquivos ZIP recebidos da rotina de Disaster Recovery local do cliente.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {backups.length > 0 ? (
+                            backups.map(backup => {
+                                const sizeMB = (backup.sizeBytes / (1024 * 1024)).toFixed(2);
+                                return (
+                                    <div key={backup.id} className="flex items-center justify-between p-4 rounded-2xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all bg-white group">
+                                        <div className="flex items-center space-x-4 min-w-0">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
+                                                <Database className="w-5 h-5 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-slate-800 text-sm truncate" title={backup.filename}>{backup.filename}</p>
+                                                <div className="flex items-center gap-3 mt-1">
+                                                    <span className="text-[10px] font-bold text-slate-400">{sizeMB} MB</span>
+                                                    <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${backup.type === 'AUTO' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                                                        {backup.type}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-medium">
+                                                        {new Date(backup.createdAt).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleDownloadBackup(backup.id, backup.filename)}
+                                            className="p-2.5 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer shrink-0 ml-2"
+                                            title="Baixar Backup ZIP"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-gray-200 rounded-3xl">
+                                <div className="p-4 bg-gray-50 rounded-full mb-3">
+                                    <HardDrive className="w-8 h-8 text-gray-300" />
+                                </div>
+                                <h4 className="text-gray-900 font-bold mb-1">Nenhum backup recebido</h4>
+                                <p className="text-sm text-gray-500 max-w-sm">Os backups automáticos são processados diariamente pelo cliente e enviados para a nuvem.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
