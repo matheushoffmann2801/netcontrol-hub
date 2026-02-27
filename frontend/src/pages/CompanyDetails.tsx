@@ -5,7 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import {
     ArrowLeft, CheckCircle2, XCircle, Shield,
     Activity, Server, History, RefreshCcw, Power, Eye, Fingerprint, Database,
-    Copy, Edit, Check, Sparkles, Save
+    Copy, Edit, Check, Sparkles, Save, Send, BellRing
 } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -142,6 +142,36 @@ export function CompanyDetails() {
     const [editMode, setEditMode] = useState(false);
     const [editName, setEditName] = useState('');
     const [editDocument, setEditDocument] = useState('');
+
+    const [sendNotifMode, setSendNotifMode] = useState(false);
+    const [notifTitle, setNotifTitle] = useState('');
+    const [notifMessage, setNotifMessage] = useState('');
+    const [notifType, setNotifType] = useState('INFO');
+
+    const handleSendNotification = async () => {
+        if (!notifTitle.trim() || !notifMessage.trim()) {
+            toast.error('Título e mensagem são obrigatórios.');
+            return;
+        }
+
+        setIsActionLoading(true);
+        try {
+            await api.post(`/companies/${id}/notifications`, {
+                title: notifTitle,
+                message: notifMessage,
+                type: notifType
+            });
+            toast.success('Notificação enviada com sucesso!');
+            setSendNotifMode(false);
+            setNotifTitle('');
+            setNotifMessage('');
+        } catch (error) {
+            toast.error('Erro ao enviar notificação.');
+            console.error(error);
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (company) {
@@ -429,6 +459,17 @@ export function CompanyDetails() {
                                 >
                                     <Shield className="w-4 h-4" />
                                     <span>Renovar +30 Dias</span>
+                                </button>
+
+                                <div className="border-t border-gray-200 my-4" />
+
+                                <button
+                                    onClick={() => setSendNotifMode(true)}
+                                    disabled={isActionLoading || company.status === 'CANCELED'}
+                                    className="w-full flex items-center justify-center space-x-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 p-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-50"
+                                >
+                                    <Send className="w-4 h-4" />
+                                    <span>Enviar Notificação</span>
                                 </button>
 
                                 <div className="border-t border-gray-200 my-4" />
@@ -747,6 +788,89 @@ export function CompanyDetails() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Send Notification Modal */}
+            {sendNotifMode && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
+                                    <BellRing className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-slate-900">Enviar Notificação</h3>
+                                    <p className="text-xs text-slate-500">Enviar alerta direto para o sistema do cliente.</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setSendNotifMode(false)} className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-colors">
+                                <XCircle className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4 bg-slate-50/30">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 block">Tipo de Alerta</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => setNotifType('INFO')}
+                                        className={`py-2 px-3 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${notifType === 'INFO' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        <div className={`w-2 h-2 rounded-full ${notifType === 'INFO' ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                                        Informativo
+                                    </button>
+                                    <button
+                                        onClick={() => setNotifType('WARNING')}
+                                        className={`py-2 px-3 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${notifType === 'WARNING' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        <div className={`w-2 h-2 rounded-full ${notifType === 'WARNING' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                                        Aviso / Manutenção
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 block">Título</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: Atualização do Sistema"
+                                    value={notifTitle}
+                                    onChange={(e) => setNotifTitle(e.target.value)}
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 block">Mensagem</label>
+                                <textarea
+                                    rows={4}
+                                    placeholder="Detalhes..."
+                                    value={notifMessage}
+                                    onChange={(e) => setNotifMessage(e.target.value)}
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
+                            <button
+                                onClick={() => setSendNotifMode(false)}
+                                className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleSendNotification}
+                                disabled={isActionLoading || !notifTitle || !notifMessage}
+                                className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isActionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
+                                Enviar Agora
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
