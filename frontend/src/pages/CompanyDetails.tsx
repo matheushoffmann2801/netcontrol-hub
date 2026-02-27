@@ -792,83 +792,122 @@ export function CompanyDetails() {
                 </div>
             )}
 
-            {/* Send Notification Modal */}
+            {/* Send Notification Modal — Mobile-First Bottom Sheet */}
             {sendNotifMode && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
-                                    <BellRing className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-900">Enviar Notificação</h3>
-                                    <p className="text-xs text-slate-500">Enviar alerta direto para o sistema do cliente.</p>
-                                </div>
+                <div className="fixed inset-0 z-[60] flex flex-col justify-end md:justify-center md:items-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200" onClick={() => setSendNotifMode(false)}>
+                    <div className="bg-white rounded-t-[32px] md:rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[92vh] md:max-h-[85vh] animate-in slide-in-from-bottom-10 md:zoom-in-95 duration-300" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+
+                        {/* Drag Handle (mobile) + Header */}
+                        <div className="shrink-0">
+                            <div className="flex justify-center pt-3 pb-1 md:hidden">
+                                <div className="w-10 h-1.5 bg-slate-200 rounded-full" />
                             </div>
-                            <button onClick={() => setSendNotifMode(false)} className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-colors">
-                                <XCircle className="w-6 h-6" />
-                            </button>
+                            <div className="px-6 md:px-8 py-4 md:py-5 border-b border-slate-100 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
+                                        <BellRing className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-900 text-base">Enviar Notificação</h3>
+                                        <p className="text-xs text-slate-400">Enviar alerta direto para <span className="font-semibold text-slate-500">{company?.name}</span></p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setSendNotifMode(false)} className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-xl transition-colors">
+                                    <XCircle className="w-6 h-6" />
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="p-6 space-y-4 bg-slate-50/30">
+                        {/* Body — Scrollable */}
+                        <div className="p-6 md:px-8 overflow-y-auto flex-1 space-y-5 bg-slate-50/30">
+                            {/* Type Selector */}
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 block">Tipo de Alerta</label>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Tipo de Alerta</label>
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => setNotifType('INFO')}
-                                        className={`py-2 px-3 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${notifType === 'INFO' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                                        className={`py-3.5 px-4 rounded-2xl border-2 text-sm font-bold flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${notifType === 'INFO'
+                                            ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm shadow-blue-500/10'
+                                            : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
                                     >
-                                        <div className={`w-2 h-2 rounded-full ${notifType === 'INFO' ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${notifType === 'INFO' ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30' : 'bg-slate-100 text-slate-400'}`}>
+                                            <BellRing className="w-5 h-5" />
+                                        </div>
                                         Informativo
                                     </button>
                                     <button
                                         onClick={() => setNotifType('WARNING')}
-                                        className={`py-2 px-3 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2 transition-all ${notifType === 'WARNING' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                                        className={`py-3.5 px-4 rounded-2xl border-2 text-sm font-bold flex flex-col items-center gap-2 transition-all active:scale-[0.97] ${notifType === 'WARNING'
+                                            ? 'border-amber-500 bg-amber-50 text-amber-700 shadow-sm shadow-amber-500/10'
+                                            : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:border-slate-300'}`}
                                     >
-                                        <div className={`w-2 h-2 rounded-full ${notifType === 'WARNING' ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${notifType === 'WARNING' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30' : 'bg-slate-100 text-slate-400'}`}>
+                                            <Shield className="w-5 h-5" />
+                                        </div>
                                         Aviso / Manutenção
                                     </button>
                                 </div>
                             </div>
 
+                            {/* Title Input */}
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 block">Título</label>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Título</label>
                                 <input
                                     type="text"
                                     placeholder="Ex: Atualização do Sistema"
                                     value={notifTitle}
-                                    onChange={(e) => setNotifTitle(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    maxLength={80}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNotifTitle(e.target.value)}
+                                    className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all"
                                 />
+                                <p className="text-[10px] text-slate-300 text-right mt-1 font-medium">{notifTitle.length}/80</p>
                             </div>
 
+                            {/* Message Input */}
                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5 block">Mensagem</label>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Mensagem</label>
                                 <textarea
                                     rows={4}
-                                    placeholder="Detalhes..."
+                                    placeholder="Descreva os detalhes da notificação..."
                                     value={notifMessage}
-                                    onChange={(e) => setNotifMessage(e.target.value)}
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all resize-none"
+                                    maxLength={500}
+                                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotifMessage(e.target.value)}
+                                    className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm text-slate-800 placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 outline-none transition-all resize-none"
                                 />
+                                <p className="text-[10px] text-slate-300 text-right mt-1 font-medium">{notifMessage.length}/500</p>
                             </div>
+
+                            {/* Preview */}
+                            {(notifTitle || notifMessage) && (
+                                <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-1">
+                                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mb-2">Pré-visualização</p>
+                                    <div className="flex items-start gap-3">
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${notifType === 'WARNING' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                                            {notifType === 'WARNING' ? <Shield className="w-4 h-4" /> : <BellRing className="w-4 h-4" />}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-slate-800 text-sm truncate">{notifTitle || 'Título...'}</p>
+                                            <p className="text-slate-500 text-xs mt-0.5 line-clamp-2">{notifMessage || 'Mensagem...'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-3">
+                        {/* Footer */}
+                        <div className="px-6 md:px-8 py-5 border-t border-slate-100 bg-white flex gap-3 shrink-0 pb-safe">
                             <button
                                 onClick={() => setSendNotifMode(false)}
-                                className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+                                className="flex-1 py-3.5 rounded-2xl font-bold text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all active:scale-[0.98]"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleSendNotification}
-                                disabled={isActionLoading || !notifTitle || !notifMessage}
-                                className="px-6 py-2.5 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-50 flex items-center gap-2"
+                                disabled={isActionLoading || !notifTitle.trim() || !notifMessage.trim()}
+                                className="flex-[2] py-3.5 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50 disabled:shadow-none active:scale-[0.98] flex justify-center items-center gap-2"
                             >
-                                {isActionLoading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Send className="w-4 h-4" />}
-                                Enviar Agora
+                                {isActionLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Send className="w-4 h-4" /> Enviar Notificação</>}
                             </button>
                         </div>
                     </div>
@@ -878,3 +917,4 @@ export function CompanyDetails() {
         </div>
     );
 }
+
