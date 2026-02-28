@@ -1010,8 +1010,25 @@ const backupStorage = multer.diskStorage({
 });
 const uploadBackup = multer({ storage: backupStorage });
 
+// Middleware para extrair companyId do token na rota de upload de backup
+const extractCompanyIdForBackup = (req: any, res: any, next: any) => {
+  const authHeader = req.headers?.authorization;
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as any;
+      if (decoded && decoded.companyId) {
+        req.companyId = decoded.companyId;
+      }
+    } catch (e) {
+      // Ignorar, validação principal dentro da rota
+    }
+  }
+  next();
+};
+
 // Rota consumida pelo NetControl Client para fazer upload do arquivo ZIP
-app.post('/backups/upload', uploadBackup.single('file'), async (req: any, res: any) => {
+app.post('/backups/upload', extractCompanyIdForBackup, uploadBackup.single('file'), async (req: any, res: any) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -1080,9 +1097,15 @@ app.get('/api/companies/:id/backups/:backupId/download', requireAdmin, async (re
       return res.status(404).json({ error: 'Backup não encontrado' });
     }
 
-    const filePath = path.join(__dirname, '..', 'data', 'backups', id, backup.filename);
+    let filePath = path.join(__dirname, '..', 'data', 'backups', id, backup.filename);
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Arquivo físico do backup não encontrado no servidor' });
+      // Fallback para arquivos antigos salvos na pasta 'unknown'
+      const fallbackPath = path.join(__dirname, '..', 'data', 'backups', 'unknown', backup.filename);
+      if (fs.existsSync(fallbackPath)) {
+        filePath = fallbackPath;
+      } else {
+        return res.status(404).json({ error: 'Arquivo físico do backup não encontrado no servidor' });
+      }
     }
 
     res.download(filePath, backup.filename);
