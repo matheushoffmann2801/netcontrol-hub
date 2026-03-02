@@ -13,7 +13,25 @@ import rateLimit from 'express-rate-limit';
 const prisma = new PrismaClient();
 const app = express();
 
-app.use(helmet());
+// Trust reverse proxy for rate limiters and IP detection (Coolify/Traefik)
+app.set('trust proxy', 1);
+
+// Security headers with adjustments for Vite and Coolify deployments
+app.use(helmet({
+  crossOriginOpenerPolicy: false,     // Fixes "untrustworthy origin"
+  originAgentCluster: false,          // Fixes "Origin-Agent-Cluster header" warning
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "http:"],
+      connectSrc: ["'self'", "http:", "https:", "ws:", "wss:"],
+    },
+  },
+}));
 app.use(cors());
 app.use(express.json());
 
