@@ -7,10 +7,13 @@ import bcrypt from 'bcryptjs';
 import path from 'path';
 import fs from 'fs'; // Added
 import multer from 'multer'; // Added
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 const prisma = new PrismaClient();
 const app = express();
 
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
@@ -18,8 +21,13 @@ app.use(express.json());
 const publicPath = path.join(__dirname, '..', 'public');
 app.use(express.static(publicPath));
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret';
-const JWT_ADMIN_SECRET = process.env.JWT_ADMIN_SECRET || 'super-secret-admin-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_ADMIN_SECRET = process.env.JWT_ADMIN_SECRET;
+
+if (!JWT_SECRET || !JWT_ADMIN_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET e JWT_ADMIN_SECRET não configurados no arquivo .env.');
+  process.exit(1);
+}
 
 // ==========================================
 // MIDDLEWARE DE AUTENTICAÇÃO DO ADMIN
@@ -45,7 +53,13 @@ const authMiddleware = (req: express.Request, res: express.Response, next: expre
 // ==========================================
 // ROTA DE LOGIN DO ADMIN
 // ==========================================
-app.post('/api/auth/login', async (req: any, res: any) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Muitas tentativas falhas. Conta bloqueada temporariamente após 5 tentativas. Tente em 15 minutos.' }
+});
+
+app.post('/api/auth/login', loginLimiter, async (req: any, res: any) => {
   try {
     const email = req.body.email?.trim();
     const password = req.body.password;
@@ -928,13 +942,27 @@ app.post('/heartbeat', async (req: any, res: any) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    // 5. Buscar comandos pendentes
+    const pendingCommands = await prisma.command.findMany({
+      where: { companyId: decoded.companyId, executed: false }
+    });
+
+    // Marcar como executados (entregues)
+    if (pendingCommands.length > 0) {
+      await prisma.command.updateMany({
+        where: { id: { in: pendingCommands.map((c: any) => c.id) } },
+        data: { executed: true }
+      });
+    }
+
     // 6. Devolvemos o sinal verde com auto-sync (se houver newToken, o cliente atualiza .env)
     res.status(200).json({
       message: 'Heartbeat recebido. Sistema Online e Licença Válida.',
       valid: true,
       modules: latestLicense ? JSON.parse(latestLicense.modules) : decoded.modules,
       newToken: newToken,
-      notifications: pendingNotifications
+      notifications: pendingNotifications,
+      commands: pendingCommands
     });
 
   } catch (error: any) {
@@ -970,12 +998,16 @@ app.post('/api/companies/:id/force-sync', requireAdmin, async (req: any, res: an
       }
     });
 
-    // TODO: Num cenário real de arquitetura orientada a eventos, aqui a gente mandaria
-    // uma mensagem pra um broker (ex: RabbitMQ, Redis Pub/Sub) ou dispararia
-    // um evento gRPC ou WebSocket pro cliente ouvir e executar as rotinas dele.
+    // 2. Cria o comando de Backup Forçado para ser entregue no próximo Heartbeat
+    await prisma.command.create({
+      data: {
+        companyId: id,
+        type: 'FORCE_BACKUP'
+      }
+    });
 
     res.status(200).json({
-      message: 'Comando de sincronização em tempo real enfileirado.',
+      message: 'Comando de sincronização em tempo real sincronizado.',
       status: 'QUEUED',
       companyId: id
     });
@@ -997,7 +1029,7 @@ app.post('/api/companies/:id/force-sync', requireAdmin, async (req: any, res: an
 const backupStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Para a rota de upload pública (com token do cliente), req.companyId será definido na validação
-    const companyId = (req as any).companyId || 'unknown'; 
+    const companyId = (req as any).companyId || 'unknown';
     const dir = path.join(__dirname, '..', 'data', 'backups', companyId);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
@@ -1065,7 +1097,7 @@ app.post('/backups/upload', extractCompanyIdForBackup, uploadBackup.single('file
   } catch (error) {
     console.error('Erro ao processar upload de backup:', error);
     if (req.file && fs.existsSync(req.file.path)) {
-       fs.unlinkSync(req.file.path); // Remove arquivo se falhar a criar no DB
+      fs.unlinkSync(req.file.path); // Remove arquivo se falhar a criar no DB
     }
     res.status(500).json({ error: 'Erro interno ao processar backup' });
   }
