@@ -21,6 +21,7 @@ app.use(helmet({
   crossOriginOpenerPolicy: false,     // Fixes "untrustworthy origin"
   originAgentCluster: false,          // Fixes "Origin-Agent-Cluster header" warning
   crossOriginResourcePolicy: false,
+  hsts: false,                        // Desabilita Strict-Transport-Security nativo enquanto não tem SSL
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -29,6 +30,7 @@ app.use(helmet({
       fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:", "http:"],
       connectSrc: ["'self'", "http:", "https:", "ws:", "wss:"],
+      upgradeInsecureRequests: null,  // IMPEDE o navegador de forçar HTTP para HTTPS e quebrar arquivos JS/CSS
     },
   },
 }));
